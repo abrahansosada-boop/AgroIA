@@ -6,6 +6,15 @@ import os
 from datetime import datetime
 import plotly.express as px
 import pulp  
+from supabase import create_client, Client
+
+@st.cache_resource
+def init_connection():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
+supabase = init_connection()
 
 # (LOGIN)
 if "autenticado" not in st.session_state:
@@ -33,13 +42,25 @@ st.title("🌾 Sistema de Inteligencia Agropecuaria v3.1")
 #CARGAR DATOS
 def cargar_base_datos():
     try:
+
         with open("bd_agro_v2.json", "r") as archivo:
-            return json.load(archivo)
-    except FileNotFoundError:
+            base_fusionada = json.load(archivo)
+
+        respuesta = supabase.table("inventario").select("*").execute()
+        
+
+        for fila in respuesta.data:
+            insumo = fila["insumo"]
+            if insumo in base_fusionada:
+                base_fusionada[insumo]["stock_kg"] = float(fila["stock_kg"])
+                base_fusionada[insumo]["costo_kg"] = float(fila["costo_kg"])
+            
+        return base_fusionada
+        
+    except Exception as e:
+        st.error(f"Error de conexión: {e}")
         return {}
-
 base_datos = cargar_base_datos()
-
 #MENÚ LATERAL
 st.sidebar.header("⚙️ Panel de Control")
 opcion = st.sidebar.radio(
@@ -102,8 +123,10 @@ if "1." in opcion:
         base_datos[insumo_edit]["stock_kg"] += nuevo_stock
         base_datos[insumo_edit]["costo_kg"] = nuevo_precio
         
-        with open("bd_agro_v2.json", "w") as f:
-            json.dump(base_datos, f, indent=4)
+        supabase.table("inventario").update({
+            "stock_kg": float(base_datos[insumo_edit]["stock_kg"]),
+            "costo_kg": float(base_datos[insumo_edit]["costo_kg"])
+        }).eq("insumo", insumo_edit).execute()
             
         st.success(f"✅ ¡{insumo_edit.upper()} actualizado correctamente!")
         st.rerun() 
@@ -133,8 +156,10 @@ if "1." in opcion:
                 
                 base_datos[llave_maiz]["costo_kg"] = nuevo_precio_maiz
                 
-                with open("bd_agro_v2.json", "w") as f:
-                    json.dump(base_datos, f, indent=4)
+                supabase.table("inventario").update({
+                "stock_kg": float(base_datos[llave_maiz]["stock_kg"]),
+                "costo_kg": float(base_datos[llave_maiz]["costo_kg"])
+            }).eq("insumo", llave_maiz).execute()
                     
                 st.success(f"✅ ¡Éxito! Dólar a ${precio_dolar:.2f} MXN. Nuevo precio del Maíz fijado en **${nuevo_precio_maiz} MXN/kg**.")
                 import time
