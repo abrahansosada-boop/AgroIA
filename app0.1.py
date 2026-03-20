@@ -7,6 +7,25 @@ from datetime import datetime
 import plotly.express as px
 import pulp  
 
+# (LOGIN)
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
+
+if not st.session_state["autenticado"]:
+    st.title("🔒 Acceso Restringido - AgroIA")
+    st.write("Por favor, identifícate para entrar al sistema del rancho.")
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        password = st.text_input("Contraseña Maestra:", type="password")
+        if st.button("🚪 Entrar al Sistema", use_container_width=True):
+            if password == "rancho2026":  
+                st.session_state["autenticado"] = True
+                st.rerun()
+            elif password != "":
+                st.error("❌ Contraseña incorrecta.")
+    st.stop()
+
 #CONFIGURACIÓN
 st.set_page_config(page_title="AgroIA v3.1", page_icon="🐄", layout="wide")
 st.title("🌾 Sistema de Inteligencia Agropecuaria v3.1")
@@ -88,7 +107,7 @@ if "1." in opcion:
             
         st.success(f"✅ ¡{insumo_edit.upper()} actualizado correctamente!")
         st.rerun() 
-    # 3. CONEXIÓN A WALL STREET
+
     st.divider()
     st.subheader("🌐 Radar Satelital: Bolsa de Valores")
     st.markdown("Cotiza el precio internacional del **Maíz** en tiempo real (ajustado al tipo de cambio USD/MXN).")
@@ -443,14 +462,14 @@ elif opcion == "6. Motor IA":
     if st.button("🧠 GENERAR FÓRMULA ÓPTIMA"):
         prob = pulp.LpProblem("Dieta_Barata", pulp.LpMinimize)
 
-        # 2. Crear las variables (Kilos de cada insumo para hacer 100 kg de mezcla)
+        # Crear las variables (Kilos de cada insumo para hacer 100 kg de mezcla)
         insumos = list(base_datos.keys())
         x = pulp.LpVariable.dicts("Ingrediente", insumos, lowBound=0)
 
-        # 3. La Meta: Minimizar el costo total
+        # La Meta: Minimizar el costo total
         prob += pulp.lpSum([x[i] * base_datos[i]["costo_kg"] for i in insumos]), "Costo"
 
-        # 4. RESTRICCIONES 
+        # RESTRICCIONES 
         # Regla A: La mezcla debe sumar exactamente 100 kilos
         prob += pulp.lpSum([x[i] for i in insumos]) == 100, "Peso_100"
 
@@ -467,7 +486,7 @@ elif opcion == "6. Motor IA":
 
         prob.solve()
 
-       #5 Mostrar Resultados
+       # Mostrar Resultados
         if pulp.LpStatus[prob.status] == "Optimal":
             st.success("✅ ¡Fórmula óptima encontrada! Es matemáticamente la más barata y segura.")
     
@@ -490,7 +509,7 @@ elif opcion == "6. Motor IA":
             costo_por_kg_ia = costo_cien_kg / 100
             st.title(f"💰 Costo final: ${costo_por_kg_ia:.2f} MXN / kg")
             st.balloons()
-            # --- PUENTE AL LABORATORIO ---
+            # PUENTE AL LABORATORIO
             st.divider()
             st.session_state["receta_guardada_ia"] = {
                 "ingredientes": [i for i in insumos if x[i].varValue > 0.01],
