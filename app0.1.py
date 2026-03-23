@@ -239,6 +239,7 @@ elif opcion == "2. Diseñar Perfil Animal":
         elif clima > 35:
             st.warning("⚠️ ALERTA: Temperatura extrema. Se recomienda sombra y suplementación energética.")
 
+# MODULO 3
 elif opcion == "3. Laboratorio de Mezclas":
     st.header("🧪 Laboratorio de Mezclas y Riesgos")
     
@@ -361,6 +362,40 @@ elif opcion == "3. Laboratorio de Mezclas":
                         st.warning("⚠️ RIESGO: Fibra muy baja. Peligro inminente de acidosis ruminal.")
                 else:
                     st.error("Agregue kilos a los ingredientes.")
+                    
+    # CORRECTOR DE TOLVA (PEARSON)
+    st.divider()
+    st.subheader("⚖️ Corrector de Mezcla (Cuadrado de Pearson)")
+    st.markdown("Calcula cuánto ingrediente de 'refuerzo' añadir para corregir la proteína de una mezcla ya existente.")
+
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        prot_actual = st.number_input("Proteína actual de la mezcla (%)", value=11.0, step=0.5)
+        kilos_en_tolva = st.number_input("Kilos actuales en la revolvedora", value=1000, step=100)
+    with col_p2:
+        prot_objetivo = st.number_input("Proteína objetivo (%)", value=14.0, step=0.5)
+        ing_refuerzo = st.selectbox("Selecciona ingrediente de refuerzo:", list(base_datos.keys()))
+        prot_refuerzo = base_datos[ing_refuerzo]["proteina_pct"]
+
+    if st.button("🧮 Calcular Corrección"):
+        # Lógica del Cuadrado de Pearson
+        if prot_objetivo <= prot_actual or prot_objetivo >= prot_refuerzo:
+            st.error("Misión Imposible: La proteína objetivo debe estar ENTRE la actual y la del refuerzo.")
+        else:
+            # Partes del refuerzo = |Prot Objetivo - Prot Actual|
+            # Partes de la mezcla = |Prot Refuerzo - Prot Objetivo|
+            partes_refuerzo = abs(prot_objetivo - prot_actual)
+            partes_mezcla = abs(prot_refuerzo - prot_objetivo)
+            total_partes = partes_refuerzo + partes_mezcla
+            
+            # Kilos de refuerzo a añadir = (Kilos en tolva / Partes mezcla) * Partes refuerzo
+            kilos_a_añadir = (kilos_en_tolva / partes_mezcla) * partes_refuerzo
+            nuevo_total = kilos_en_tolva + kilos_a_añadir
+            
+            st.success(f"**Resultado:** Añade **{kilos_a_añadir:.2f} kg** de **{ing_refuerzo.upper()}**.")
+            st.info(f"Tendrás un total de **{nuevo_total:.2f} kg** al **{prot_objetivo}%** de proteína.")
+            
+            registrar_bitacora("Corrección Pearson", f"Se corrigió tolva de {kilos_en_tolva}kg al {prot_objetivo}% usando {ing_refuerzo}.")
 
 #MÓDULO 4: PROYECCIÓN FINANCIERA
 elif opcion == "4. Proyección Financiera":
@@ -466,18 +501,39 @@ elif opcion == "5. Caja Negra (Bitácora)":
         
         if respuesta.data:
             df_bitacora = pd.DataFrame(respuesta.data)
+            df_bitacora['fecha'] = pd.to_datetime(df_bitacora['fecha'])
             
-            df_bitacora['fecha'] = pd.to_datetime(df_bitacora['fecha']).dt.strftime('%Y-%m-%d %H:%M:%S')
+            col_g1, col_g2 = st.columns(2)
             
-            df_bitacora = df_bitacora[['fecha', 'accion', 'detalle']]
-            df_bitacora.columns = ['Fecha y Hora', 'Tipo de Acción', 'Detalle del Movimiento']
-
-            st.dataframe(df_bitacora, use_container_width=True, hide_index=True)
+            with col_g1:
+                # Gráfica de Pastel: Tipos de Acciones
+                fig_pie = px.pie(df_bitacora, names='accion', title='📊 Distribución de Actividades',
+                               hole=0.4, color_discrete_sequence=px.colors.sequential.RdBu)
+                st.plotly_chart(fig_pie, use_container_width=True)
+                
+            with col_g2:
+                # Gráfica de Barras: Actividad por día
+                df_bitacora['dia'] = df_bitacora['fecha'].dt.date
+                resumen_dia = df_bitacora.groupby('dia').size().reset_index(name='conteo')
+                fig_bar = px.bar(resumen_dia, x='dia', y='conteo', title='📈 Intensidad de Operación',
+                                labels={'dia': 'Fecha', 'conteo': 'Movimientos'},
+                                color_discrete_sequence=['#00CC96'])
+                st.plotly_chart(fig_bar, use_container_width=True)
+            
+            st.divider()
+            
+            df_bitacora['fecha_str'] = df_bitacora['fecha'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            df_final = df_bitacora[['fecha_str', 'accion', 'detalle']]
+            df_final.columns = ['Fecha y Hora', 'Tipo de Acción', 'Detalle del Movimiento']
+            
+            st.dataframe(df_final, use_container_width=True, hide_index=True)
+            
         else:
             st.info("La bitácora está limpia. Aún no hay movimientos registrados.")
             
     except Exception as e:
         st.error(f"Error al leer la Caja Negra: {e}")
+            
 
 #MÓDULO 6: AUTO-FORMULACIÓN (IA)
 elif opcion == "6. Motor IA":
@@ -492,92 +548,81 @@ elif opcion == "6. Motor IA":
 
     if st.button("🧠 GENERAR FÓRMULA ÓPTIMA"):
         prob = pulp.LpProblem("Dieta_Barata", pulp.LpMinimize)
-
-        # Crear las variables (Kilos de cada insumo para hacer 100 kg de mezcla)
         insumos = list(base_datos.keys())
         x = pulp.LpVariable.dicts("Ingrediente", insumos, lowBound=0)
 
-        # La Meta: Minimizar el costo total
+        # LA META: Minimizar costo total
         prob += pulp.lpSum([x[i] * base_datos[i]["costo_kg"] for i in insumos]), "Costo"
 
         # RESTRICCIONES 
-        # Regla A: La mezcla debe sumar exactamente 100 kilos
         prob += pulp.lpSum([x[i] for i in insumos]) == 100, "Peso_100"
-
-        # Regla B: Cumplir con la proteína requerida
         prob += pulp.lpSum([x[i] * base_datos[i]["proteina_pct"] for i in insumos]) >= req_proteina * 100, "Req_Prot"
-
-        # Regla C: Cumplir con la energía requerida
         prob += pulp.lpSum([x[i] * base_datos[i]["energia_mcal"] for i in insumos]) >= req_energia * 100, "Req_Ener"
-
-        # Regla D: Salud del animal (No exceder el max_pct de la base de datos)
+        
         for i in insumos:
             if "max_pct" in base_datos[i]:
                 prob += x[i] <= base_datos[i]["max_pct"], f"Max_{i}"
 
         prob.solve()
 
-       # Mostrar Resultados
         if pulp.LpStatus[prob.status] == "Optimal":
-            st.success("✅ ¡Fórmula óptima encontrada! Es matemáticamente la más barata y segura.")
-    
+            # GUARDAR RESULTADO EN MEMORIA 
             resultados = []
             costo_cien_kg = 0
             for i in insumos:
                 kilos_sugeridos = x[i].varValue
-                if kilos_sugeridos > 0.01: 
-                    costo_ingrediente = kilos_sugeridos * base_datos[i]["costo_kg"]
-                    costo_cien_kg += costo_ingrediente
+                if kilos_sugeridos > 0.01:
+                    costo_ing = kilos_sugeridos * base_datos[i]["costo_kg"]
+                    costo_cien_kg += costo_ing
                     resultados.append({
                         "Insumo": i.upper(),
                         "Kilos a mezclar (por cada 100kg)": round(kilos_sugeridos, 2),
-                        "Costo en la dieta ($)": round(costo_ingrediente, 2)
-            })
-    
-            df_ia = pd.DataFrame(resultados)
-            st.dataframe(df_ia, use_container_width=True)
-    
-            costo_por_kg_ia = costo_cien_kg / 100
-            st.title(f"💰 Costo final proyectado: ${costo_por_kg_ia:.2f} MXN / kg")
-            st.balloons()
-        
-            #PUENTE AL LABORATORIO
-            st.divider()
-            st.session_state["receta_guardada_ia"] = {
-            "ingredientes": [i for i in insumos if x[i].varValue > 0.01],
-            "kilos": {i: float(x[i].varValue) for i in insumos if x[i].varValue > 0.01}
+                        "Costo en la dieta ($)": round(costo_ing, 2)
+                    })
+            
+            st.session_state['solucion_ia'] = {
+                "df": pd.DataFrame(resultados),
+                "costo_kg": costo_cien_kg / 100,
+                "detalles_ia": {
+                    "ingredientes": [i for i in insumos if x[i].varValue > 0.01],
+                    "kilos": {i: float(x[i].varValue) for i in insumos if x[i].varValue > 0.01}
+                }
             }
-            st.info("💾 **Receta en Memoria.** Ve al Módulo 3 y busca el botón de Importar para auditarla.")
+            st.balloons()
+            registrar_bitacora("Motor IA", f"Fórmula generada. Costo proyectado: ${costo_cien_kg/100:.2f}/kg.")
+        else:
+            st.session_state['solucion_ia'] = None
+            st.error("❌ Misión Imposible. La bodega no tiene ingredientes suficientes para esta meta.")
 
-            registrar_bitacora("Motor IA", f"Fórmula optimizada generada. Costo proyectado: ${costo_por_kg_ia:.2f}/kg.")
-            registrar_bitacora("Motor IA", f"Fórmula optimizada generada. Costo proyectado: ${costo_por_kg_ia:.2f}/kg.")
+    # BLOQUE DE VISUALIZACIÓN 
+    if 'solucion_ia' in st.session_state and st.session_state['solucion_ia'] is not None:
+        sol = st.session_state['solucion_ia']
         
+        st.success("✅ ¡Fórmula óptima encontrada!")
+        st.title(f"💰 Costo final proyectado: ${sol['costo_kg']:.2f} MXN / kg")
+        st.dataframe(sol['df'], use_container_width=True, hide_index=True)
+        
+        # PUENTE AL LABORATORIO 
+        st.divider()
+        if st.button("💾 Enviar Receta a Memoria de Mezclado"):
+            st.session_state["receta_guardada_ia"] = sol['detalles_ia']
+            st.info("📥 Receta enviada. Ve al Módulo 3 y pícale a 'Importar Receta IA'.")
+
+        # ESCALADOR LOGÍSTICO
         st.divider()
         st.subheader("🚜 Escalador Logístico (Proyección de Compras)")
-        st.markdown("Calcula cuántas **toneladas** exactas pedir al proveedor para alimentar un lote completo.")
-        
         c_lote1, c_lote2, c_lote3 = st.columns(3)
-        with c_lote1:
-            num_cabezas = st.number_input("Número de Animales", value=100, step=10)
-        with c_lote2:
-            consumo_cab = st.number_input("Consumo (kg/animal/día)", value=10.0, step=0.5)
-        with c_lote3:
-            dias_dieta = st.number_input("Días de Alimentación", value=30, step=5)
+        with c_lote1: num_cabezas = st.number_input("Número de Animales", value=100, step=10)
+        with c_lote2: consumo_cab = st.number_input("Consumo (kg/animal/día)", value=10.0, step=0.5)
+        with c_lote3: dias_dieta = st.number_input("Días de Alimentación", value=30, step=5)
             
         if st.button("📦 Calcular Toneladas a Comprar", use_container_width=True):
-            kilos_totales_requeridos = num_cabezas * consumo_cab * dias_dieta
-            toneladas_totales = kilos_totales_requeridos / 1000
+            kilos_totales = num_cabezas * consumo_cab * dias_dieta
+            ton_totales = kilos_totales / 1000
+            st.success(f"**Requerimiento Total del Lote:** {ton_totales:,.1f} Toneladas.")
             
-            st.success(f"**Requerimiento Total del Lote:** {toneladas_totales:,.1f} Toneladas de alimento.")
-            
-            df_compras = df_ia.copy()
-            df_compras["Toneladas a Pedir"] = (df_compras["Kilos a mezclar (por cada 100kg)"] / 100) * toneladas_totales
-            
-            df_compras["Toneladas a Pedir"] = df_compras["Toneladas a Pedir"].apply(lambda x: f"{x:,.2f} Ton")
-            
-            st.dataframe(df_compras[["Insumo", "Toneladas a Pedir"]], use_container_width=True, hide_index=True)
-            
-            registrar_bitacora("Cálculo Logístico", f"Se proyectó compra de {toneladas_totales:,.1f} Ton para {num_cabezas} cabezas.")
-
-    else:
-        st.error("❌ Misión Imposible. La bodega no tiene ingredientes suficientes para alcanzar esa meta sin envenenar al animal. Baja la proteína o consigue mejores insumos.")
+            df_compra = sol['df'].copy()
+            df_compra["Toneladas a Pedir"] = (df_compra["Kilos a mezclar (por cada 100kg)"] / 100) * ton_totales
+            df_compra["Toneladas a Pedir"] = df_compra["Toneladas a Pedir"].apply(lambda x: f"{x:,.2f} Ton")
+            st.dataframe(df_compra[["Insumo", "Toneladas a Pedir"]], use_container_width=True, hide_index=True)
+            registrar_bitacora("Cálculo Logístico", f"Proyección de {ton_totales:.1f} Ton para {num_cabezas} animales.")
