@@ -3,4 +3,4 @@ pandas
 supabase
 yfinance
 pulp
-plotl
+plotly
