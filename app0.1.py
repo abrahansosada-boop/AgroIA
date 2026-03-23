@@ -61,6 +61,16 @@ def cargar_base_datos():
         st.error(f"Error de conexión: {e}")
         return {}
 base_datos = cargar_base_datos()
+# BITÁCORA EN LA NUBE
+def registrar_bitacora(accion, detalle):
+    try:
+        supabase.table("bitacora").insert({
+            "accion": accion,
+            "detalle": detalle
+        }).execute()
+    except Exception as e:
+        st.error(f"Error al guardar en la Caja Negra: {e}")
+
 #MENÚ LATERAL
 st.sidebar.header("⚙️ Panel de Control")
 opcion = st.sidebar.radio(
@@ -123,10 +133,13 @@ if "1." in opcion:
         base_datos[insumo_edit]["stock_kg"] += nuevo_stock
         base_datos[insumo_edit]["costo_kg"] = nuevo_precio
         
+        # GUARDAR EN SUPABASE
         supabase.table("inventario").update({
             "stock_kg": float(base_datos[insumo_edit]["stock_kg"]),
             "costo_kg": float(base_datos[insumo_edit]["costo_kg"])
         }).eq("insumo", insumo_edit).execute()
+        
+        registrar_bitacora("Inventario Manual", f"Se actualizó {insumo_edit.upper()}: {nuevo_stock} kg agregados/quitados. Nuevo precio: ${nuevo_precio}")
             
         st.success(f"✅ ¡{insumo_edit.upper()} actualizado correctamente!")
         st.rerun() 
@@ -160,6 +173,9 @@ if "1." in opcion:
                 "stock_kg": float(base_datos[llave_maiz]["stock_kg"]),
                 "costo_kg": float(base_datos[llave_maiz]["costo_kg"])
             }).eq("insumo", llave_maiz).execute()
+            
+            
+                registrar_bitacora("Radar Chicago", f"Precio del maíz fijado en ${nuevo_precio_maiz} MXN/kg")
                     
                 st.success(f"✅ ¡Éxito! Dólar a ${precio_dolar:.2f} MXN. Nuevo precio del Maíz fijado en **${nuevo_precio_maiz} MXN/kg**.")
                 import time
@@ -189,17 +205,35 @@ elif opcion == "2. Diseñar Perfil Animal":
         enviado = st.form_submit_button("🔥 GUARDAR Y ANALIZAR PERFIL")
 
     if enviado:
+        #INTELIGENCIA VETERINARIA
+        dosis_desparasitante = peso / 50
+        costo_desparasitante = dosis_desparasitante * 2.5
+        
+        costo_vacunas_base = 45.0 
+        costo_salud_total = costo_desparasitante + costo_vacunas_base
+
         st.session_state['perfil'] = {
             "raza": raza_sel,
             "genero": genero.lower(),
             "edad": edad,
             "proposito": proposito.lower(),
             "clima": clima,
-            "peso": peso
+            "peso": peso,
+            "costo_salud": costo_salud_total  
         }
         st.success(f"✅ Perfil de {raza_sel.upper()} guardado en memoria.")
+
+        st.divider()
+        st.subheader("💉 Protocolo Sanitario de Ingreso (Sugerido)")
+        st.markdown(f"**Recomendación para un {raza_sel.title()} de {peso} kg:**")
         
-        #LÓGICA DE ADAPTABILIDAD
+        med1, med2, med3 = st.columns(3)
+        med1.metric("Desparasitante (Ivermectina 1%)", f"{dosis_desparasitante:.1f} ml")
+        med2.metric("Vacunas Base", "Rabia + Clostridios + ADE")
+        med3.metric("Costo Médico Inicial", f"${costo_salud_total:.2f} MXN")
+        
+        st.caption("💡 *Nota: Un animal sano asimila mejor la dieta. Este costo de salud ya se guardó para tu proyección financiera.*")
+
         if raza_sel in ["angus", "hereford", "holstein"] and clima > 30:
             st.error(f"⚠️ ALERTA DE ADAPTABILIDAD: El {raza_sel.upper()} es de clima templado. A {clima}°C sufrirá estrés calórico severo.")
         elif clima > 35:
@@ -340,6 +374,7 @@ elif opcion == "4. Proyección Financiera":
         
         ganancia_est = 0.8 + ((mezc["proteina"] - 14.0) * 0.05)
         consumo_diario = perf["peso"] * 0.03
+        costo_salud_amortizado = perf.get("costo_salud", 0) / 100
         costo_dia = consumo_diario * mezc["costo_kg"]
         costo_kg_carne = costo_dia / ganancia_est
         
@@ -403,76 +438,47 @@ elif opcion == "4. Proyección Financiera":
         st.divider()
         st.subheader("💾 Respaldar Lote")
         if st.button("Guardar en la Caja Negra"):
-            nuevo_registro = {
-                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "Raza": perf['raza'].upper(),
-                "Costo Producción": round(costo_kg_carne, 2),
-                "Precio Venta": round(precio_venta, 2),
-                "Margen Utilidad": round(margen_por_kilo, 2)
-            }
-            
-            archivo_bitacora = "bitacora_agro.json"
-            historial = []
-            if os.path.exists(archivo_bitacora):
-                with open(archivo_bitacora, "r") as f:
-                    historial = json.load(f)
-            
-            historial.append(nuevo_registro)
-            with open(archivo_bitacora, "w") as f:
-                json.dump(historial, f, indent=4)
+            try:
+                nuevo_registro = {
+                    "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "Raza": perf['raza'].upper(),
+                    "Costo Producción": round(costo_kg_carne, 2),
+                    "Precio Venta": round(precio_venta, 2),
+                    "Margen Utilidad": round(margen_por_kilo, 2)
+                }
                 
-            for item in mezc["detalle"]:
-                insumo_nombre = item["nombre"]
-                kilos_usados = item["kilos"]
-                if insumo_nombre in base_datos and "stock_kg" in base_datos[insumo_nombre]:
-                    base_datos[insumo_nombre]["stock_kg"] -= kilos_usados
-            
-            with open("bd_agro_v2.json", "w") as f:
-                json.dump(base_datos, f, indent=4)
+                registrar_bitacora("Proyección Financiera", 
+                                 f"Raza: {perf['raza'].upper()} | Margen: ${round(margen_por_kilo, 2)}/kg | Costo Prod: ${round(costo_kg_carne, 2)}/kg")
                 
-            st.success("✅ ¡Lote archivado y kilos descontados de la bodega!")
+                st.success("✅ ¡Proyección guardada en la Caja Negra de la nube!")
+                
+            except Exception as e:
+                st.error(f"Error al guardar la proyección: {e}")
+    
 #MÓDULO 5: CAJA NEGRA
-elif "5." in opcion:
-    st.header("🗄️ Histórico de Lotes del Rancho")
+
+elif opcion == "5. Caja Negra (Bitácora)":
+    st.header("📓 Caja Negra: Historial de Movimientos")
+    st.markdown("Auditoría en tiempo real de las operaciones del rancho.")
     
-    archivo_bitacora = "bitacora_agro.json"
-    
-    if os.path.exists(archivo_bitacora):
-        with open(archivo_bitacora, "r") as f:
-            historial = json.load(f)
+    try:
+        respuesta = supabase.table("bitacora").select("*").order("fecha", desc=True).execute()
+        
+        if respuesta.data:
+            df_bitacora = pd.DataFrame(respuesta.data)
             
-        if historial:
-            # MOSTRAR TABLA
-            df_historial = pd.DataFrame(historial)
-            df_historial.index.name = "ID Lote" 
-            st.dataframe(df_historial, use_container_width=True)
+            df_bitacora['fecha'] = pd.to_datetime(df_bitacora['fecha']).dt.strftime('%Y-%m-%d %H:%M:%S')
             
-            st.info(f"Tienes {len(historial)} lotes registrados en la historia del rancho.")
-            
-            #BORRAR REGISTRO
-            st.divider()
-            st.subheader("🗑️ Eliminar Registro")
-            st.write("¿Te equivocaste al guardar? Selecciona el **ID Lote** (el número de la izquierda) que deseas borrar.")
-            
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                id_borrar = st.number_input("ID del Lote a borrar:", min_value=0, max_value=len(historial)-1, step=1)
-            
-            with col2:
-                st.write("") 
-                st.write("") 
-                if st.button("🚨 Borrar Lote Definitivamente"):
-                    historial.pop(id_borrar) 
-                    
-                    with open(archivo_bitacora, "w") as f:
-                        json.dump(historial, f, indent=4)
-                        
-                    st.success("Lote eliminado con éxito.")
-                    st.rerun() 
+            df_bitacora = df_bitacora[['fecha', 'accion', 'detalle']]
+            df_bitacora.columns = ['Fecha y Hora', 'Tipo de Acción', 'Detalle del Movimiento']
+
+            st.dataframe(df_bitacora, use_container_width=True, hide_index=True)
         else:
-            st.warning("La bitácora existe, pero está vacía.")
-    else:
-        st.info("Aún no tienes registros. Ve al Módulo 4 y guarda tu primera proyección.")
+            st.info("La bitácora está limpia. Aún no hay movimientos registrados.")
+            
+    except Exception as e:
+        st.error(f"Error al leer la Caja Negra: {e}")
+
 #MÓDULO 6: AUTO-FORMULACIÓN (IA)
 elif opcion == "6. Motor IA":
     st.header("🤖 Motor de Optimización Lineal (IA)")
@@ -532,14 +538,46 @@ elif opcion == "6. Motor IA":
             st.dataframe(df_ia, use_container_width=True)
     
             costo_por_kg_ia = costo_cien_kg / 100
-            st.title(f"💰 Costo final: ${costo_por_kg_ia:.2f} MXN / kg")
+            st.title(f"💰 Costo final proyectado: ${costo_por_kg_ia:.2f} MXN / kg")
             st.balloons()
-            # PUENTE AL LABORATORIO
+        
+            #PUENTE AL LABORATORIO
             st.divider()
             st.session_state["receta_guardada_ia"] = {
-                "ingredientes": [i for i in insumos if x[i].varValue > 0.01],
-                "kilos": {i: float(x[i].varValue) for i in insumos if x[i].varValue > 0.01}
+            "ingredientes": [i for i in insumos if x[i].varValue > 0.01],
+            "kilos": {i: float(x[i].varValue) for i in insumos if x[i].varValue > 0.01}
             }
-            st.info("💾 **Receta guardada automáticamente en la Nube.** Ve al Módulo 3 y busca el botón de Importar.")
-        else:
-            st.error("❌ Misión Imposible. La bodega no tiene ingredientes suficientes para alcanzar esa meta sin envenenar al animal. Baja la proteína o consigue mejores insumos.")
+            st.info("💾 **Receta en Memoria.** Ve al Módulo 3 y busca el botón de Importar para auditarla.")
+
+            registrar_bitacora("Motor IA", f"Fórmula optimizada generada. Costo proyectado: ${costo_por_kg_ia:.2f}/kg.")
+            registrar_bitacora("Motor IA", f"Fórmula optimizada generada. Costo proyectado: ${costo_por_kg_ia:.2f}/kg.")
+        
+        st.divider()
+        st.subheader("🚜 Escalador Logístico (Proyección de Compras)")
+        st.markdown("Calcula cuántas **toneladas** exactas pedir al proveedor para alimentar un lote completo.")
+        
+        c_lote1, c_lote2, c_lote3 = st.columns(3)
+        with c_lote1:
+            num_cabezas = st.number_input("Número de Animales", value=100, step=10)
+        with c_lote2:
+            consumo_cab = st.number_input("Consumo (kg/animal/día)", value=10.0, step=0.5)
+        with c_lote3:
+            dias_dieta = st.number_input("Días de Alimentación", value=30, step=5)
+            
+        if st.button("📦 Calcular Toneladas a Comprar", use_container_width=True):
+            kilos_totales_requeridos = num_cabezas * consumo_cab * dias_dieta
+            toneladas_totales = kilos_totales_requeridos / 1000
+            
+            st.success(f"**Requerimiento Total del Lote:** {toneladas_totales:,.1f} Toneladas de alimento.")
+            
+            df_compras = df_ia.copy()
+            df_compras["Toneladas a Pedir"] = (df_compras["Kilos a mezclar (por cada 100kg)"] / 100) * toneladas_totales
+            
+            df_compras["Toneladas a Pedir"] = df_compras["Toneladas a Pedir"].apply(lambda x: f"{x:,.2f} Ton")
+            
+            st.dataframe(df_compras[["Insumo", "Toneladas a Pedir"]], use_container_width=True, hide_index=True)
+            
+            registrar_bitacora("Cálculo Logístico", f"Se proyectó compra de {toneladas_totales:,.1f} Ton para {num_cabezas} cabezas.")
+
+    else:
+        st.error("❌ Misión Imposible. La bodega no tiene ingredientes suficientes para alcanzar esa meta sin envenenar al animal. Baja la proteína o consigue mejores insumos.")
