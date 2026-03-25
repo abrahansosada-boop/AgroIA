@@ -72,77 +72,163 @@ def registrar_bitacora(accion, detalle):
         st.error(f"Error al guardar en la Caja Negra: {e}")
 
 #MENÚ LATERAL
-st.sidebar.header("⚙️ Panel de Control")
-opcion = st.sidebar.radio(
-    "Seleccione un Módulo:",
-    (
-        "1. Inventario de Insumos", 
-        "2. Diseñar Perfil Animal", 
-        "3. Laboratorio de Mezclas", 
-        "4. Proyección Financiera", 
-        "5. Caja Negra (Bitácora)",
-        "6. Motor IA"
-    )
-)
+# SISTEMA DE ROLES (MODO ADMINISTRADOR VS OPERADOR)
+st.sidebar.divider()
+st.sidebar.subheader("🔐 Nivel de Acceso")
+pin_secreto = st.sidebar.text_input("PIN de Seguridad:", type="password")
+
+es_administrador = (pin_secreto == "2026") # Este es el NIP secreto
+
+if es_administrador:
+        st.sidebar.success("Modo Administrador Activado 🤠")
+        modulos_disponibles = [
+            "📦 Inventario de Insumos",
+            "🧬 Diseñar Perfil Animal",
+            "🧪 Laboratorio de Mezclas",
+            "💰 Proyección Financiera",     
+            "🕵️ Caja Negra (Bitácora)",     
+            "🧠 Motor IA",
+            "🪦 Gestión de Mortandad (Bajas)",
+            "⚖️ Control de Peso (Báscula)"
+        ]
+else:
+        st.sidebar.info("Modo Operador 👷")
+        modulos_disponibles = [
+            "📦 Inventario de Insumos",
+            "🧬 Diseñar Perfil Animal",
+            "🧪 Laboratorio de Mezclas",
+            "🧠 Motor IA",
+            "🪦 Gestión de Mortandad (Bajas)",
+            "⚖️ Control de Peso (Báscula)"
+        ]
+
+opcion = st.sidebar.radio("Seleccione un Módulo:", modulos_disponibles)
 
 #MÓDULO 1: INVENTARIO DE INSUMOS
-if "1." in opcion:
+if "Inventario" in opcion:
     st.header("📦 Control de Bodega y Precios")
     
     st.subheader("📊 Estado Actual del Inventario")
     
+    # LÓGICA DE ALERTAS HÍBRIDAS 
+    col_alerta1, col_alerta2 = st.columns(2)
+    with col_alerta1:
+        tipo_alerta = st.radio("Configuración de Alertas:", ["⚖️ Por Kilos Mínimos", "⏳ Por Días Restantes"], horizontal=True)
+    with col_alerta2:
+        if "Días" in tipo_alerta:
+            consumo_diario = st.number_input("Consumo estimado del rancho (kg/día)", min_value=1.0, value=300.0, step=50.0)
+            limite_critico = st.number_input("Alerta Roja a los (Días):", min_value=1, value=3, step=1)
+        else:
+            limite_critico = st.number_input("Alerta Roja a los (Kilos):", min_value=1.0, value=500.0, step=100.0)
+
     inventario_visual = []
     for insumo, datos in base_datos.items():
         stock = datos.get("stock_kg", 0)
         precio = datos.get("costo_kg", 0)
         
-        if stock <= 500:
-            estatus = "🔴 CRÍTICO (Comprar)"
-        elif stock <= 2000:
-            estatus = "🟡 PRECAUCIÓN"
+        # Evaluador Inteligente de Alertas
+        if "Días" in tipo_alerta:
+            dias_restantes = stock / consumo_diario if consumo_diario > 0 else 0
+            if dias_restantes <= limite_critico:
+                estatus = f"🔴 CRÍTICO ({dias_restantes:.1f} días)"
+            elif dias_restantes <= limite_critico + 4:
+                estatus = f"🟡 PRECAUCIÓN ({dias_restantes:.1f} días)"
+            else:
+                estatus = f"🟢 ÓPTIMO ({dias_restantes:.1f} días)"
         else:
-            estatus = "🟢 ÓPTIMO"
-            
+            if stock <= limite_critico:
+                estatus = "🔴 CRÍTICO"
+            elif stock <= limite_critico * 2:
+                estatus = "🟡 PRECAUCIÓN"
+            else:
+                estatus = "🟢 ÓPTIMO"
+                
         inventario_visual.append({
             "Insumo": insumo.upper(),
-            "Stock en Bodega (kg)": stock,
-            "Costo Actual ($/kg)": precio,
+            "Stock en Bodega (kg)": round(stock, 2),
+            "Costo Actual ($/kg)": round(precio, 2),
             "Estado": estatus
         })
         
     df_inventario = pd.DataFrame(inventario_visual)
-    st.dataframe(df_inventario, use_container_width=True)
+    if not es_administrador:
+        df_inventario = df_inventario.drop(columns=["Costo Actual ($/kg)"])        
+    st.dataframe(df_inventario, use_container_width=True, hide_index=True)
     
-    #ACTUALIZAR INVENTARIO O PRECIOS
+    #ACTUALIZAR INVENTARIO, PRECIOS O MERMAS
     st.divider()
-    st.subheader("🛒 Ingresar Mercancía o Cambiar Precios")
-    st.markdown("¿Llegó el camión o subió el precio? Actualízalo aquí sin tocar el código.")
+    st.subheader("🛠️ Auditoría y Movimientos de Bodega")
     
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        insumo_edit = st.selectbox("Selecciona el Insumo:", list(base_datos.keys()))
-    with col2:
-        # Sumar o restar kilos
-        nuevo_stock = st.number_input("Agregar/Quitar Kilos:", value=0.0, step=50.0)
-        st.caption(f"Stock actual: {base_datos[insumo_edit].get('stock_kg', 0)} kg")
-    with col3:
-        # Modificar el precio
-        nuevo_precio = st.number_input("Nuevo Precio ($/kg):", value=float(base_datos[insumo_edit].get("costo_kg", 0)), step=0.1)
+    col_ed1, col_ed2 = st.columns(2)
+    with col_ed1:
+        insumo_edit = st.selectbox("Seleccione Insumo:", list(base_datos.keys()))
+        tipo_movimiento = st.radio("Tipo de Movimiento:", [
+            "📦 Ingreso / Compra (Suma)", 
+            "⚖️ Ajuste de Inventario (Suma/Resta)", 
+            "🐀 Reportar Merma (Resta y Fuga de Dinero)"
+        ])
         
-    if st.button("💾 Guardar Cambios en Bodega"):
-        base_datos[insumo_edit]["stock_kg"] += nuevo_stock
-        base_datos[insumo_edit]["costo_kg"] = nuevo_precio
+    with col_ed2:
+        kilos_mov = st.number_input("Kilos del movimiento", min_value=0.0, value=0.0, step=50.0)
         
-        # GUARDAR EN SUPABASE
-        supabase.table("inventario").update({
-            "stock_kg": float(base_datos[insumo_edit]["stock_kg"]),
-            "costo_kg": float(base_datos[insumo_edit]["costo_kg"])
-        }).eq("insumo", insumo_edit).execute()
-        
-        registrar_bitacora("Inventario Manual", f"Se actualizó {insumo_edit.upper()}: {nuevo_stock} kg agregados/quitados. Nuevo precio: ${nuevo_precio}")
-            
-        st.success(f"✅ ¡{insumo_edit.upper()} actualizado correctamente!")
-        st.rerun() 
+        # Opciones dinámicas dependiendo del movimiento
+        if "Ingreso" in tipo_movimiento:
+            nuevo_precio = st.number_input("Nuevo precio de compra ($/kg)", value=float(base_datos[insumo_edit]["costo_kg"]), step=0.1)
+        elif "Merma" in tipo_movimiento:
+            causa_merma = st.selectbox("Causa de la pérdida:", ["Humedad/Lluvia", "Plagas (Ratones/Gorgojo)", "Accidente/Rotura", "Robo/Extravío"])
+            # Calculamos la pérdida en vivo 
+            perdida_calculada = kilos_mov * base_datos[insumo_edit]['costo_kg']
+            st.warning(f"💸 Esto generará una pérdida auditada de **${perdida_calculada:,.2f} MXN**")
+
+    if st.button("💾 Registrar Movimiento en Bóveda", use_container_width=True):
+        if kilos_mov <= 0 and "Ajuste" not in tipo_movimiento:
+             st.error("⚠️ Tienes que poner más de 0 kilos para hacer este movimiento.")
+        else:
+            try:
+                stock_actual = base_datos[insumo_edit]["stock_kg"]
+                precio_actual = base_datos[insumo_edit]["costo_kg"]
+                
+                # Lógica matemática según el movimiento
+                if "Ingreso" in tipo_movimiento:
+                    nuevo_stock = stock_actual + kilos_mov
+                    precio_final = nuevo_precio
+                    tipo_accion = "Compra de Insumo"
+                    detalle = f"Ingreso de {kilos_mov}kg de {insumo_edit.upper()}. Nuevo precio: ${precio_final}"
+                    
+                elif "Ajuste" in tipo_movimiento:
+                    # Sumamos lo que ponga el usuario (si quiere restar, que le ponga un signo menos '-50')
+                    nuevo_stock = stock_actual + kilos_mov 
+                    precio_final = precio_actual
+                    tipo_accion = "Ajuste de Bodega"
+                    detalle = f"Ajuste manual de {insumo_edit.upper()}: {kilos_mov}kg."
+                    
+                elif "Merma" in tipo_movimiento:
+                    nuevo_stock = stock_actual - kilos_mov
+                    precio_final = precio_actual
+                    perdida_dinero = kilos_mov * precio_actual
+                    tipo_accion = "Merma Financiera"
+                    detalle = f"MERMA de {kilos_mov}kg de {insumo_edit.upper()} por {causa_merma}. Fuga: ${perdida_dinero:,.2f}"
+
+                # 1. Enviar a Supabase primero 
+                respuesta = supabase.table("inventario").update({
+                    "stock_kg": float(nuevo_stock),
+                    "costo_kg": float(precio_final)
+                }).eq("insumo", insumo_edit).execute()
+
+                # 2. Actualizar memoria local para que se vea reflejado
+                base_datos[insumo_edit]["stock_kg"] = float(nuevo_stock)
+                base_datos[insumo_edit]["costo_kg"] = float(precio_final)
+                
+                # 3. Registrar en Caja Negra
+                registrar_bitacora(tipo_accion, detalle)
+                st.success(f"✅ ¡Movimiento de {insumo_edit.upper()} registrado exitosamente!")
+                
+                import time
+                time.sleep(1) 
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Error al conectar con la bóveda en la nube: {e}")
 
     st.divider()
     st.subheader("🌐 Radar Satelital: Bolsa de Valores")
@@ -184,8 +270,8 @@ if "1." in opcion:
                 
             except Exception as e:
                 st.error(f"❌ Los de traje cortaron la conexión: {e}")
-
-elif opcion == "2. Diseñar Perfil Animal":
+# MODULO 2: PERFIL ANIMAL
+elif "Perfil" in opcion:
     st.header("🧬 Configuración de Inteligencia Genética")
     
     with st.form("perfil_animal"):
@@ -240,7 +326,7 @@ elif opcion == "2. Diseñar Perfil Animal":
             st.warning("⚠️ ALERTA: Temperatura extrema. Se recomienda sombra y suplementación energética.")
 
 # MODULO 3
-elif opcion == "3. Laboratorio de Mezclas":
+elif "Laboratorio" in opcion:
     st.header("🧪 Laboratorio de Mezclas y Riesgos")
     
     if 'perfil' not in st.session_state:
@@ -398,7 +484,7 @@ elif opcion == "3. Laboratorio de Mezclas":
             registrar_bitacora("Corrección Pearson", f"Se corrigió tolva de {kilos_en_tolva}kg al {prot_objetivo}% usando {ing_refuerzo}.")
 
 #MÓDULO 4: PROYECCIÓN FINANCIERA
-elif opcion == "4. Proyección Financiera":
+elif "Proyección" in opcion:
     st.header("📈 Centro de Control Financiero")
     
     if 'perfil' not in st.session_state or 'mezcla' not in st.session_state:
@@ -491,8 +577,7 @@ elif opcion == "4. Proyección Financiera":
                 st.error(f"Error al guardar la proyección: {e}")
     
 #MÓDULO 5: CAJA NEGRA
-
-elif opcion == "5. Caja Negra (Bitácora)":
+elif "Caja Negra" in opcion:
     st.header("📓 Caja Negra: Historial de Movimientos")
     st.markdown("Auditoría en tiempo real de las operaciones del rancho.")
     
@@ -511,14 +596,13 @@ elif opcion == "5. Caja Negra (Bitácora)":
                                hole=0.4, color_discrete_sequence=px.colors.sequential.RdBu)
                 st.plotly_chart(fig_pie, use_container_width=True)
                 
-            with col_g2:
-                # Gráfica de Barras: Actividad por día
-                df_bitacora['dia'] = df_bitacora['fecha'].dt.date
-                resumen_dia = df_bitacora.groupby('dia').size().reset_index(name='conteo')
-                fig_bar = px.bar(resumen_dia, x='dia', y='conteo', title='📈 Intensidad de Operación',
-                                labels={'dia': 'Fecha', 'conteo': 'Movimientos'},
-                                color_discrete_sequence=['#00CC96'])
-                st.plotly_chart(fig_bar, use_container_width=True)
+            with col_g1:
+                # Gráfica de Pastel:
+                paleta_agro = ['#2ecc71', '#f39c12', '#7f8c8d', '#34495e', '#1abc9c']
+                fig_pie = px.pie(df_bitacora, names='accion', title='📊 Distribución de Actividades',
+                               hole=0.4, color_discrete_sequence=paleta_agro)
+                fig_pie.update_traces(textinfo='percent+label', textposition='inside')
+                st.plotly_chart(fig_pie, use_container_width=True)
             
             st.divider()
             
@@ -527,7 +611,16 @@ elif opcion == "5. Caja Negra (Bitácora)":
             df_final.columns = ['Fecha y Hora', 'Tipo de Acción', 'Detalle del Movimiento']
             
             st.dataframe(df_final, use_container_width=True, hide_index=True)
-            
+            # BOTÓN DE EXCEL
+            st.divider()
+            csv = df_final.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Descargar Historial a Excel (CSV)",
+                data=csv,
+                file_name=f'Auditoria_Rancho_{pd.Timestamp.now().strftime("%Y%m%d")}.csv',
+                mime='text/csv',
+                use_container_width=True
+            )
         else:
             st.info("La bitácora está limpia. Aún no hay movimientos registrados.")
             
@@ -536,7 +629,7 @@ elif opcion == "5. Caja Negra (Bitácora)":
             
 
 #MÓDULO 6: AUTO-FORMULACIÓN (IA)
-elif opcion == "6. Motor IA":
+elif "Motor IA" in opcion:
     st.header("🤖 Motor de Optimización Lineal (IA)")
     st.markdown("Dile a la máquina qué nutrientes necesitas y ella calculará la receta **más barata posible** respetando los límites de salud del animal.")
 
@@ -626,3 +719,112 @@ elif opcion == "6. Motor IA":
             df_compra["Toneladas a Pedir"] = df_compra["Toneladas a Pedir"].apply(lambda x: f"{x:,.2f} Ton")
             st.dataframe(df_compra[["Insumo", "Toneladas a Pedir"]], use_container_width=True, hide_index=True)
             registrar_bitacora("Cálculo Logístico", f"Proyección de {ton_totales:.1f} Ton para {num_cabezas} animales.")
+# MÓDULO 7: GESTIÓN DE MORTANDAD Y BAJAS
+elif "Mortandad" in opcion:
+    st.header("🪦 Gestor de Mortandad y Pérdidas")
+    st.markdown("Registra las bajas del rebaño para dar de baja las 'bocas que alimentar' y calcular la fuga de capital.")
+
+    col_m1, col_m2 = st.columns(2)
+    
+    with col_m1:
+        st.subheader("Datos de la Baja")
+        bajas = st.number_input("Número de cabezas perdidas", min_value=1, value=1, step=1)
+        causa = st.selectbox("Causa principal", [
+            "Enfermedad (ej. Anemia/Garrapata)", 
+            "Clima extremo", 
+            "Depredador/Accidente", 
+            "Causa Desconocida"
+        ])
+        peso_estimado = st.number_input("Peso estimado al morir (kg)", min_value=10.0, value=150.0, step=10.0)
+
+    with col_m2:
+        st.subheader("Auditoría Financiera")
+        st.info("💡 **El Switch del Dinero:** Si ya habías invertido en sus vacunas, ese dinero se va a pérdidas.")
+        
+        vacunados = st.radio("¿Estos animales ya tenían su protocolo sanitario aplicado?", [
+            "🔴 Sí (Se pierde la inversión médica)", 
+            "🟢 No (Murieron antes de gastar en ellos)"
+        ])
+
+    if st.button("🚨 Registrar Baja Oficial", use_container_width=True):
+        perdida_medica = 0
+        
+        # Si dijeron que SÍ estaban vacunados, cobra la vacuna
+        if "Sí" in vacunados:
+            # Traemos el costo de salud del perfil (si no hay, asumimos $50 por cabeza)
+            if 'perfil' in st.session_state and "costo_salud" in st.session_state['perfil']:
+                costo_unitario = st.session_state['perfil']['costo_salud']
+            else:
+                costo_unitario = 50.0 
+            
+            perdida_medica = bajas * costo_unitario
+
+        detalle = f"Baja de {bajas} cabezas por {causa}. Fuga de capital médico: ${perdida_medica:.2f}"
+        registrar_bitacora("Baja por Mortandad", detalle)
+        
+        if 'fuga_capital' not in st.session_state:
+            st.session_state['fuga_capital'] = 0.0
+        st.session_state['fuga_capital'] += perdida_medica
+
+        # Alertas de éxito
+        st.error(f"⚠️ Se dio de baja a {bajas} animal(es). Ya no se contarán para la compra de alimento.")
+        
+        if perdida_medica > 0:
+            st.warning(f"💸 Fuga de capital registrada: Se perdieron **${perdida_medica:.2f} MXN** en medicinas que no se van a recuperar.")
+        else:
+            st.success("✅ Baja registrada. Afortunadamente no se había invertido dinero médico en estos animales.")
+            
+# MÓDULO 8: CONTROL DE PESO (BÁSCULA)
+elif "Peso" in opcion:
+    st.header("⚖️ Báscula y Rendimiento")
+    st.markdown("Registra el peso real para auditar si la dieta está dando los resultados proyectados.")
+
+    tipo_pesaje = st.radio("Método de captura:", ["📊 Promedio por Lote", "🏷️ Individual (Por Arete)"], horizontal=True)
+
+    col_b1, col_b2 = st.columns(2)
+
+    with col_b1:
+        if "Individual" in tipo_pesaje:
+            id_animal = st.text_input("ID o Número de Arete", placeholder="Ej. Becerro 405")
+        else:
+            id_animal = st.text_input("Nombre del Lote", placeholder="Ej. Corral Norte")
+
+        peso_anterior = st.number_input("Peso Anterior (kg)", min_value=1.0, value=180.0, step=10.0)
+        peso_actual = st.number_input("Peso Actual (kg)", min_value=1.0, value=200.0, step=10.0)
+
+    with col_b2:
+        dias_transcurridos = st.number_input("Días transcurridos entre pesadas", min_value=1, value=15, step=1)
+        meta_sugerida = 1.5
+        if 'mezcla' in st.session_state:
+             meta_sugerida = 0.8 + ((st.session_state['mezcla'].get("proteina", 14.0) - 14.0) * 0.05)
+             
+        meta_ia = st.number_input("Meta de ganancia diaria proyectada (kg/día)", value=float(round(meta_sugerida, 2)), step=0.1)
+
+    if st.button("⚖️ Calcular y Registrar Pesada", use_container_width=True):
+        if not id_animal:
+            st.error("⚠️ Ponle un nombre al Lote o un número al Arete para registrarlo.")
+        elif peso_actual <= peso_anterior:
+             st.error("⚠️ El peso actual no puede ser menor o igual al anterior. Revisa los datos.")
+        else:
+            # Calcular GDP (Ganancia Diaria de Peso)
+            gdp_real = (peso_actual - peso_anterior) / dias_transcurridos
+
+            st.divider()
+            st.subheader("📈 Diagnóstico de Rendimiento")
+
+            c_res1, c_res2, c_res3 = st.columns(3)
+            c_res1.metric("Ganancia Total", f"{peso_actual - peso_anterior:.1f} kg")
+            c_res2.metric("Ganancia Diaria (Real)", f"{gdp_real:.2f} kg/día", delta=round(gdp_real - meta_ia, 2))
+            c_res3.metric("Meta Proyectada", f"{meta_ia:.2f} kg/día")
+
+            # Inteligencia de diagnóstico
+            if gdp_real >= meta_ia:
+                st.success("✅ **EXCELENTE:** El desempeño supera o iguala la proyección de la dieta. ¡Buen trabajo!")
+            elif gdp_real >= meta_ia * 0.8:
+                st.warning("⚠️ **ALERTA LEVE:** Están ganando peso, pero un poco por debajo de la meta. Revisa el consumo en comederos.")
+            else:
+                st.error("❌ **PELIGRO:** Los animales están estancados. Revisa sanidad, estrés por clima o corrige la dieta (Módulo 3).")
+
+            # Guardar en bitácora de la caja negra
+            detalle = f"Pesada {id_animal}: {peso_actual}kg. GDP: {gdp_real:.2f}kg/día (Meta: {meta_ia})."
+            registrar_bitacora("Control de Peso", detalle)
