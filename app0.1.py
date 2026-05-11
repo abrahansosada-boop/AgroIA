@@ -77,7 +77,7 @@ st.sidebar.divider()
 st.sidebar.subheader("🔐 Nivel de Acceso")
 pin_secreto = st.sidebar.text_input("PIN de Seguridad:", type="password")
 
-es_administrador = (pin_secreto == "2026") # Este es el NIP secreto
+es_administrador = (pin_secreto == "2026")
 
 if es_administrador:
         st.sidebar.success("Modo Administrador Activado 🤠")
@@ -88,6 +88,7 @@ if es_administrador:
             "💰 Proyección Financiera",     
             "🕵️ Caja Negra (Bitácora)",     
             "🧠 Motor IA",
+            "💎 Bóveda Premium (IA)",
             "🪦 Gestión de Mortandad (Bajas)",
             "⚖️ Control de Peso (Báscula)"
         ]
@@ -308,6 +309,46 @@ elif "Perfil" in opcion:
             "costo_salud": costo_salud_total  
         }
         st.success(f"✅ Perfil de {raza_sel.upper()} guardado en memoria.")
+        # INTELIGENCIA GENÉTICA 2.0 (Matriz de Adaptabilidad)
+        st.divider()
+        st.subheader("🧬 Dictamen de Inteligencia Genética")
+
+        raza = raza_sel.lower()
+        
+        # Clasificación de Gamas Genéticas
+        razas_cebuinas = ["brahman", "nelore"] # Blindaje térmico y garrapata
+        razas_sinteticas = ["simbrah", "brangus"] # Equilibrio (motor europeo + chasis cebú)
+        razas_europeas = ["angus", "hereford"] # Explosión de carne, cero tolerancia al calor
+        razas_lecheras = ["holstein"] # Leche, estrés calórico crítico
+
+        # MATRIZ DE DECISIÓN POR CLIMA
+        if clima >= 35:
+            if raza in razas_europeas or raza in razas_lecheras:
+                st.error(f"❌ **INCOMPATIBILIDAD GRAVE:** Un {raza.title()} a {clima}°C sufrirá estrés calórico severo. Dejará de comer, no ganará peso y gastarás fortunas en medicinas.")
+                st.info("💡 **Solución IA:** Cambia inmediatamente a una gama Sintética (Ej. **Simbrah** o **Brangus**) o usa base Cebuina (**Brahman**).")
+            elif raza in razas_cebuinas:
+                st.success(f"✅ **ADAPTABILIDAD PERFECTA:** El {raza.title()} es un tanque de guerra para este calor. Ganancia lenta, pero segura y sin gastos médicos.")
+                if proposito.lower() == "carne":
+                     st.info("💡 **Tip para Carne:** Para acelerar la engorda, crúzalo con un toro europeo para sacar un 3/4 Europeo y 1/4 Cebú.")
+            elif raza in razas_sinteticas:
+                st.success(f"⭐ **RANGO PREMIUM (La Mejor Elección):** El {raza.title()} te da el balance perfecto. La sangre cebú le hace aguantar los {clima}°C y el motor europeo te dará los kilos rápido.")
+                
+        elif 22 <= clima < 35:
+            if raza in razas_europeas:
+                st.warning(f"⚠️ **RIESGO MODERADO:** A {clima}°C, un {raza.title()} está en su límite. Requerirá sombra artificial obligatoria y agua fresca constante para no mermar.")
+            elif raza in razas_lecheras:
+                st.warning(f"⚠️ **CUIDADO:** El {raza.title()} bajará su producción de leche. Requiere ventilación en galera.")
+            else:
+                st.success(f"✅ **CLIMA CONFORTABLE:** La genética {raza.title()} trabajará perfectamente a {clima}°C sin estrés.")
+                
+        else: # Clima Frío/Templado (< 22°C)
+            if raza in razas_cebuinas:
+                st.warning(f"⚠️ **ALERTA DE FRÍO:** A {clima}°C, las razas cebuinas ({raza.title()}) sufren. Gastarán lo que comen en calentarse en lugar de engordar.")
+                st.info("💡 **Solución IA:** Tienes el clima ideal para razas puras de carne. Usa **Angus** o **Hereford** y explotarán en kilos.")
+            elif raza in razas_europeas:
+                st.success(f"⭐ **RANGO PREMIUM:** El clima de {clima}°C es el paraíso para el {raza.title()}. Prepárate para conversiones de carne brutales y máxima rentabilidad.")
+            else:
+                 st.success(f"✅ **ADAPTABILIDAD BUENA:** El {raza.title()} se aclimatará bien a esta temperatura.")
 
         st.divider()
         st.subheader("💉 Protocolo Sanitario de Ingreso (Sugerido)")
@@ -332,7 +373,80 @@ elif "Laboratorio" in opcion:
     if 'perfil' not in st.session_state:
         st.warning("⚠️ Primero debe configurar el animal en el Módulo 2.")
     else:
-        st.info(f"Analizando dieta para: {st.session_state['perfil']['raza'].upper()} ({st.session_state['perfil']['peso']} kg)")
+        perf = st.session_state['perfil']
+        peso = float(perf['peso'])
+        clima = float(perf['clima'])
+        
+        st.subheader("🧠 Diagnóstico Nutricional Dinámico (IA)")
+        
+        consumo_base = peso * 0.03 # Un bovino come el 3% de su peso vivo en Materia Seca
+        prot_meta = 14.0 # Proteína estándar para engorda
+        
+        if clima >= 35:
+            consumo_real = consumo_base * 0.85 # La vaca come 15% menos por el calor sofocante
+            prot_meta = 16.0 # Tenemos que concentrar la proteína en menos bocado
+            st.error(f"🚨 **ALERTA DE ESTRÉS CALÓRICO ({clima}°C):** El animal está sofocado. Reducirá su consumo a **{consumo_real:.1f} kg/día**. La IA exige concentrar la dieta a **{prot_meta}% de Proteína** para mantener el ritmo de engorda.")
+        elif clima < 20:
+            consumo_real = consumo_base * 1.10 # Come más para generar calor corporal
+            prot_meta = 12.0 # Podemos relajar la proteína y meter más energía barata (grano)
+            st.info(f"❄️ **ALERTA DE FRÍO ({clima}°C):** El animal comerá más (**{consumo_real:.1f} kg/día**) para calentarse. La IA sugiere bajar proteína a **{prot_meta}%** y subir energía para ahorrar costos.")
+        else:
+            consumo_real = consumo_base
+            st.success(f"✅ **CLIMA CONFORTABLE ({clima}°C):** Consumo normal proyectado de **{consumo_real:.1f} kg/día**. Meta sugerida de la dieta: **{prot_meta}% de Proteína**.")
+
+        st.markdown("### 🚜 Auto-Formulador de Lote (Tolva/Revolvedora)")
+        st.markdown("Deja que la IA calcule los kilos exactos para preparar tu mezcla a nivel industrial.")
+        
+        col_ia1, col_ia2 = st.columns(2)
+        cabezas = col_ia1.number_input("Número de animales en el corral:", min_value=1, value=50, step=5)
+        dias_mezcla = col_ia2.number_input("¿Para cuántos días vas a preparar?", min_value=1, value=3, step=1)
+        
+        if st.button("🤖 Generar Receta para Tolva", use_container_width=True):
+            with st.spinner('Calculando proporciones de lote...'):
+                import time
+                time.sleep(1) # Efecto de procesamiento
+                
+                # 1. Escanear Bodega (Separar Energía y Proteína)
+                ing_energia = [ins for ins, datos in base_datos.items() if datos.get("energia_mcal", 0) >= 2.5]
+                ing_proteina = [ins for ins, datos in base_datos.items() if datos.get("proteina_pct", 0) >= 20.0]
+                
+                if not ing_energia or not ing_proteina:
+                    st.error("❌ Tu bodega no tiene suficientes ingredientes de alta energía (>2.5 Mcal) o alta proteína (>20%).")
+                else:
+                    base = ing_energia[0]
+                    prot = ing_proteina[0]
+                    
+                    prot_base = base_datos[base]["proteina_pct"]
+                    prot_fuerte = base_datos[prot]["proteina_pct"]
+                    
+                    if prot_meta <= prot_base or prot_meta >= prot_fuerte:
+                        st.warning(f"⚠️ Imposible formular. Necesitas ingredientes por debajo y por encima de {prot_meta}% de proteína.")
+                    else:
+                        # Matemáticas de Pearson para 1 animal / 1 día
+                        partes_prot = abs(prot_meta - prot_base)
+                        partes_base = abs(prot_fuerte - prot_meta)
+                        total_partes = partes_prot + partes_base
+                        
+                        kg_base_diario = (partes_base / total_partes) * consumo_real
+                        kg_prot_diario = (partes_prot / total_partes) * consumo_real
+                        
+                        # MULTIPLICADOR INDUSTRIAL
+                        kg_base_tolva = kg_base_diario * cabezas * dias_mezcla
+                        kg_prot_tolva = kg_prot_diario * cabezas * dias_mezcla
+                        total_tolva = kg_base_tolva + kg_prot_tolva
+                        costo_total_bache = ((kg_base_diario * base_datos[base]['costo_kg']) + (kg_prot_diario * base_datos[prot]['costo_kg'])) * cabezas * dias_mezcla
+                        
+                        st.success(f"✅ **¡Lote Calculado!** Mezcla esto en tu tolva para alimentar a **{cabezas} cabezas** durante **{dias_mezcla} días** (Asegurando {prot_meta}% de proteína).")
+                        
+                        c1, c2, c3 = st.columns(3)
+                        c1.metric(f"🌾 {base.title().replace('_', ' ')}", f"{kg_base_tolva:.0f} kg")
+                        c2.metric(f"🥩 {prot.title().replace('_', ' ')}", f"{kg_prot_tolva:.0f} kg")
+                        c3.metric("⚖️ Peso Total en Tolva", f"{total_tolva:.0f} kg", delta=f"${costo_total_bache:,.2f} MXN el Lote", delta_color="off")
+                        st.divider()
+                        if dias_mezcla > 5:
+                            st.warning("⚠️ **ALERTA DE FRESCURA:** Estás preparando alimento para más de 5 días. Si usas melaza o urea, hay alto riesgo de fermentación tóxica en la bodega. Vigila la humedad.")
+                        else:
+                            st.info("🛡️ **Frescura Garantizada:** Este lote se consumirá a tiempo antes de que los ingredientes activos se degraden.")
         #BUSCADOR INTELIGENTE
         st.subheader("🔎 Buscador Filtrado")
         
@@ -364,18 +478,19 @@ elif "Laboratorio" in opcion:
                     st.session_state[f"kg_{ins}"] = kg
         seleccionados = st.multiselect("Seleccione los ingredientes a utilizar:", lista_filtrada, key="memoria_selector")
         
+        mezcla_final = []
+        total_kilos_mezcla = 0
+        
         if seleccionados:
-            mezcla_final = []
-            total_kilos_mezcla = 0
-            
             cols = st.columns(len(seleccionados))
             for i, insumo in enumerate(seleccionados):
                 with cols[i]:
                     kilos = st.number_input(f"Kg de {insumo}", min_value=0.0, step=1.0, key=f"kg_{insumo}")
                     mezcla_final.append({"nombre": insumo, "kilos": kilos, "datos": base_datos[insumo]})
                     total_kilos_mezcla += kilos
-           #AUDITORÍA DE MEZCLA
-            if st.button("🔬 AUDITAR MEZCLA"):
+
+        #AUDITORÍA DE MEZCLA
+        if st.button("⚖️ AUDITAR MEZCLA"):
                 if total_kilos_mezcla > 0:
                     prot_acum = sum((item["kilos"] * item["datos"]["proteina_pct"]) for item in mezcla_final) / total_kilos_mezcla
                     ener_acum = sum((item["kilos"] * item["datos"]["energia_mcal"]) for item in mezcla_final) / total_kilos_mezcla
@@ -499,24 +614,51 @@ elif "Proyección" in opcion:
         costo_dia = consumo_diario * mezc["costo_kg"]
         costo_kg_carne = costo_dia / ganancia_est
         
-        #INTELIGENCIA DE PRECIOS
-        st.subheader("🦈 Inteligencia de Mercado")
+        #INTELIGENCIA DE PRECIOS Y ESTRATEGIA DE SALIDA
+        st.subheader("📈 Estrategia de Engorda y Salida")
+        
+        tipo_meta = st.radio("¿Cuál es tu objetivo de engorda para este lote?", ["🎯 Meta por Peso (Vender a los X kilos)", "⏳ Meta por Tiempo (Vender a los X meses)"], horizontal=True)
+        
+        if "Peso" in tipo_meta:
+            meta_obj = st.number_input("Peso Objetivo de Venta (kg):", min_value=float(perf["peso"])+10.0, value=300.0, step=10.0)
+            dias_faltantes = (meta_obj - perf["peso"]) / ganancia_est
+            st.info(f"⏳ A este ritmo, llegarás a los **{meta_obj} kg** en aprox. **{dias_faltantes:.0f} días** ({dias_faltantes/30:.1f} meses).")
+        else:
+            meta_obj = st.number_input("Tiempo máximo en corral (Meses):", min_value=1.0, value=6.0, step=0.5)
+            peso_final_proy = perf["peso"] + ((meta_obj * 30) * ganancia_est)
+            st.info(f"⚖️ A este ritmo, al cumplir los **{meta_obj} meses**, el animal pesará aprox. **{peso_final_proy:.1f} kg**.")
+
+        st.divider()
+        st.subheader("💰 Inteligencia de Mercado (El Semáforo de Rentabilidad)")
+        
         col_m1, col_m2, col_m3 = st.columns(3)
-        
+
         with col_m1:
-            precio_venta = st.number_input("Precio de Venta en Pie ($/kg):", min_value=10.0, value=55.0, step=1.0)
-        
-        margen_por_kilo = precio_venta - costo_kg_carne
-        ganancia_neta_diaria = margen_por_kilo * ganancia_est
-        
-        with col_m2:
-            st.metric("Costo de Producción", f"${costo_kg_carne:.2f}/kg")
+            precio_venta = st.number_input("Precio de Venta en Pie ($/kg):", min_value=10.0, value=85.0, step=1.0)
             
+        # LA REGLA DE ORO DE LOS $50 PESOS
+        ingreso_bruto_diario = ganancia_est * precio_venta
+        ganancia_neta_diaria = ingreso_bruto_diario - costo_dia
+        margen_por_kilo = precio_venta - costo_kg_carne
+
+        with col_m2:
+            st.metric("Costo Producción (por kg)", f"${costo_kg_carne:.2f}/kg")
+
         with col_m3:
-            if margen_por_kilo > 0:
-                st.metric("Margen de Utilidad", f"${margen_por_kilo:.2f}/kg", delta="Rentable")
+            if ganancia_neta_diaria >= 50:
+                st.metric("Utilidad Neta Diaria", f"${ganancia_neta_diaria:.2f}/día", delta="¡SÚPER RENTABLE!")
+            elif ganancia_neta_diaria > 0:
+                st.metric("Utilidad Neta Diaria", f"${ganancia_neta_diaria:.2f}/día", delta="Rentabilidad Baja", delta_color="off")
             else:
-                st.metric("Margen de Utilidad", f"${margen_por_kilo:.2f}/kg", delta="-Pérdida", delta_color="inverse")
+                st.metric("Utilidad Neta Diaria", f"${ganancia_neta_diaria:.2f}/día", delta="PÉRDIDA", delta_color="inverse")
+
+        # AUDITORÍA FIRA
+        if ganancia_neta_diaria >= 50:
+            st.success("✅ **APROBADO (Estándar de Alta Eficiencia):** El animal genera $50 o más libres al día. Excelente conversión económica.")
+        elif ganancia_neta_diaria > 0:
+            st.warning("⚠️ **RIESGO DE RETENCIÓN:** Generas ganancia, pero por debajo de los $50 diarios. Si se alarga la engorda, el costo de mantenimiento te comerá el negocio.")
+        else:
+            st.error("❌ **ALERTA ROJA DE QUIEBRA:** El animal te está costando más de lo que produce. Cambia la mezcla o vende lo más pronto posible.")
 
         #FICHA TÉCNICA VISUAL
         st.divider()
@@ -555,7 +697,7 @@ elif "Proyección" in opcion:
         if margen_por_kilo > 15:
             st.balloons()
 
-        #BOTÓN DE CAJA NEGRA
+#BOTÓN DE CAJA NEGRA
         st.divider()
         st.subheader("💾 Respaldar Lote")
         if st.button("Guardar en la Caja Negra"):
@@ -580,6 +722,44 @@ elif "Proyección" in opcion:
 elif "Caja Negra" in opcion:
     st.header("📓 Caja Negra: Historial de Movimientos")
     st.markdown("Auditoría en tiempo real de las operaciones del rancho.")
+# DASHBOARD FINANCIERO 
+    st.subheader("📈 Resumen de Operación (Mensual)")
+    
+    # Tarjetas de Métricas Rápidas
+    kpi1, kpi2, kpi3 = st.columns(3)
+    
+    kpi1.metric(
+        label="💰 Gasto Total en Alimento", 
+        value="$45,230 MXN", 
+        delta="-$2,100 (Ahorro vs mes pasado)", 
+        delta_color="inverse"
+    )
+    kpi2.metric(
+        label="🔄 Lotes Preparados", 
+        value="14 Lotes", 
+        delta="+2 lotes", 
+        delta_color="normal"
+    )
+    kpi3.metric(
+        label="📉 Costo Promedio Dieta", 
+        value="$4.15 / Kg", 
+        delta="-$0.12 centavos", 
+        delta_color="inverse"
+    )
+    
+    st.divider()
+
+    col_graf1, col_graf2 = st.columns(2)
+    
+    with col_graf1:
+        st.markdown("**💸 Fuga de Capital (Gasto x Insumo)**")
+        st.info("📊 Aquí conectaremos una gráfica visual de tus gastos.")
+        
+    with col_graf2:
+        st.markdown("**📅 Tendencia de Costo de Producción**")
+        st.info("📈 Aquí pondremos una línea de tiempo del costo.")
+        
+    st.divider()
     
     try:
         respuesta = supabase.table("bitacora").select("*").order("fecha", desc=True).execute()
@@ -632,6 +812,37 @@ elif "Caja Negra" in opcion:
 elif "Motor IA" in opcion:
     st.header("🤖 Motor de Optimización Lineal (IA)")
     st.markdown("Dile a la máquina qué nutrientes necesitas y ella calculará la receta **más barata posible** respetando los límites de salud del animal.")
+
+    st.subheader("📊 Radar de Costo-Beneficio (Proteína Barata)")
+    st.info("La IA evalúa todos tus ingredientes y los ordena mostrándote cuál te da más proteína por cada peso invertido hoy.")
+
+    analisis_prot = []
+    for ins, datos in base_datos.items():
+        if datos.get("proteina_pct", 0) > 2.0: 
+            costo_por_punto = datos["costo_kg"] / datos["proteina_pct"]
+            analisis_prot.append({
+                "Insumo": ins.title().replace("_", " "), 
+                "Costo por Punto": f"${costo_por_punto:.2f}", 
+                "Proteína Total": f"{datos['proteina_pct']}%", 
+                "Costo x Kg": f"${datos['costo_kg']:.2f}"
+            })
+
+    analisis_prot = sorted(analisis_prot, key=lambda x: float(x["Costo por Punto"].replace('$', '')))
+    st.dataframe(analisis_prot, use_container_width=True)
+    st.divider()
+
+# TABLERO DE CONTROL 
+    st.markdown("### 🎛️ Configuración del Lote")
+    
+    col_sis, col_etapa = st.columns(2)
+    with col_sis:
+        sistema = st.radio("1. Sistema de Producción:", ["🏡 Estabulado (Corral)", "🌿 Pastoreo (Suplemento)"])
+        
+    with col_etapa:
+        etapa = st.selectbox("2. Etapa de Vida:", ["🍼 Inicio (Desarrollo de Rumen)", "📈 Desarrollo (Crecimiento)", "🥩 Finalización"])
+
+    usar_promotores = st.toggle("💊 Incluir Promotores / Ionóforos (Ej. Monensina)")
+    st.divider()
 
     col1, col2 = st.columns(2)
     with col1:
@@ -779,9 +990,18 @@ elif "Peso" in opcion:
     st.header("⚖️ Báscula y Rendimiento")
     st.markdown("Registra el peso real para auditar si la dieta está dando los resultados proyectados.")
 
-    tipo_pesaje = st.radio("Método de captura:", ["📊 Promedio por Lote", "🏷️ Individual (Por Arete)"], horizontal=True)
+    modo_campo = st.toggle("📱 Activar Modo Campo (Pantalla para Celular)")
 
-    col_b1, col_b2 = st.columns(2)
+    es_horizontal = False if modo_campo else True
+    tipo_pesaje = st.radio("Método de captura:", ["📊 Promedio por Lote", "🏷️ Individual (Por Arete)"], horizontal=es_horizontal)
+
+    if modo_campo:
+        col_b1 = st.container()
+        col_b2 = st.container()
+        
+        st.markdown("<style> div.stButton > button {height: 4.5rem !important; font-size: 22px !important; border: 2px solid #4CAF50;} </style>", unsafe_allow_html=True)
+    else:
+        col_b1, col_b2 = st.columns(2)
 
     with col_b1:
         if "Individual" in tipo_pesaje:
@@ -796,15 +1016,15 @@ elif "Peso" in opcion:
         dias_transcurridos = st.number_input("Días transcurridos entre pesadas", min_value=1, value=15, step=1)
         meta_sugerida = 1.5
         if 'mezcla' in st.session_state:
-             meta_sugerida = 0.8 + ((st.session_state['mezcla'].get("proteina", 14.0) - 14.0) * 0.05)
-             
+            meta_sugerida = 0.8 + ((st.session_state['mezcla'].get("proteina", 14.0) - 14.0) * 0.05)
+
         meta_ia = st.number_input("Meta de ganancia diaria proyectada (kg/día)", value=float(round(meta_sugerida, 2)), step=0.1)
 
     if st.button("⚖️ Calcular y Registrar Pesada", use_container_width=True):
         if not id_animal:
             st.error("⚠️ Ponle un nombre al Lote o un número al Arete para registrarlo.")
         elif peso_actual <= peso_anterior:
-             st.error("⚠️ El peso actual no puede ser menor o igual al anterior. Revisa los datos.")
+            st.error("⚠️ El peso actual no puede ser menor o igual al anterior. Revisa los datos.")
         else:
             # Calcular GDP (Ganancia Diaria de Peso)
             gdp_real = (peso_actual - peso_anterior) / dias_transcurridos
@@ -817,7 +1037,6 @@ elif "Peso" in opcion:
             c_res2.metric("Ganancia Diaria (Real)", f"{gdp_real:.2f} kg/día", delta=round(gdp_real - meta_ia, 2))
             c_res3.metric("Meta Proyectada", f"{meta_ia:.2f} kg/día")
 
-            # Inteligencia de diagnóstico
             if gdp_real >= meta_ia:
                 st.success("✅ **EXCELENTE:** El desempeño supera o iguala la proyección de la dieta. ¡Buen trabajo!")
             elif gdp_real >= meta_ia * 0.8:
@@ -825,6 +1044,58 @@ elif "Peso" in opcion:
             else:
                 st.error("❌ **PELIGRO:** Los animales están estancados. Revisa sanidad, estrés por clima o corrige la dieta (Módulo 3).")
 
-            # Guardar en bitácora de la caja negra
             detalle = f"Pesada {id_animal}: {peso_actual}kg. GDP: {gdp_real:.2f}kg/día (Meta: {meta_ia})."
             registrar_bitacora("Control de Peso", detalle)
+            # CONEXIÓN FINAL: Actualizar el peso en el perfil global
+            if 'perfil' in st.session_state:
+                st.session_state['perfil']['peso'] = peso_actual
+                st.success(f"🔄 ¡Sistema Nervioso Activo! El peso base para tus finanzas se actualizó automáticamente a {peso_actual} kg.")
+# MÓDULO 9: LA BÓVEDA PREMIUM (IA)
+elif "Bóveda" in opcion:
+    st.header("💎 Bóveda Premium de AgroIA")
+    st.markdown("Manuales de emergencia y tecnologías de rescate para el rancho.")
+    
+    tab1, tab2, tab3 = st.tabs(["🌽 Silo de Tamo (Rescate)", "🌵 Pasta de Nopal", "📡 Cercos Virtuales"])
+    
+    with tab1:
+        st.subheader("Silo tipo 'Pastel' (Convertir rastrojo en alimento suave)")
+        st.markdown("""
+        **¿Para qué sirve?** Para hacer que el tamo de maíz seco, que las vacas casi no pueden digerir, se vuelva blando y nutritivo usando el propio calor de la fermentación.
+        
+        **Instrucciones paso a paso:**
+        1. **Prepara la cama:** Pon un hule o plástico grueso y sin hoyos en el suelo plano.
+        2. **Acomoda el material:** Echa una capa gruesa de tamo de maíz seco sobre el plástico.
+        3. **La mezcla activadora (¡CUIDADO AQUÍ!):** Primero, disuelve bien la urea en **agua tibia o caliente** (si la echas en agua fría quedan granos enteros y puedes matar a la vaca por intoxicación). Ya bien disuelta, revuélvela con más agua y melaza. Rocía el tamo con esta mezcla. *El tamo debe quedar húmedo, no escurriendo.*
+        4. **Písalo con ganas:** Compacta el tamo caminando encima o pasando un tractor ligero. El objetivo es sacarle TODO el aire. Si queda aire, se pudre.
+        5. **Séllalo por completo:** Cúbrelo con otro plástico por arriba. Ponle llantas viejas o tierra en las orillas para que quede sellado al vacío. 
+        6. **Déjalo cocinar:** Espérate entre 21 y 30 días sin destaparlo. Se va a calentar solo; ese calor "cocina" la fibra dura.
+        """)
+        if st.button("Aplicar Receta al Laboratorio (Próximamente)", key="btn_silo"):
+            st.toast("Próximamente: La IA te calculará los litros exactos de agua y melaza.")
+            
+    with tab2:
+        st.subheader("Pasta Forrajera de Nopal")
+        st.markdown("""
+        **¿Para qué sirve?** Es un salvavidas cuando no hay pasto ni lluvia. El nopal aporta muchísima agua y energía barata.
+        
+        **Instrucciones paso a paso:**
+        1. **Corte y limpieza:** Corta pencas maduras y chamusca las espinas (si no es variedad sin espina).
+        2. **Picado:** Pícalo en trozos pequeños con machete o una picadora de forraje.
+        3. **El truco para evitar diarrea:** El nopal tiene demasiada agua. **NUNCA** lo des solo. Revuélvelo siempre con un forraje muy seco (paja, rastrojo, tamo) para que la dieta amarre en la panza de la vaca.
+        4. **Agrega la proteína:** Si puedes, espolvorea un poco de pasta de soya o urea a la revoltura antes de echarlo al comedero.
+        """)
+        if st.button("Aplicar Receta al Laboratorio (Próximamente)", key="btn_nopal"):
+            st.toast("Próximamente: La IA te dirá cuánto rastrojo seco echarle al nopal.")
+        
+    with tab3:
+        st.subheader("Collares Inteligentes (Sin Cercos Físicos)")
+        st.markdown("""
+        **¿Qué es?** Eliminar el alambre de púas. Usas collares con GPS que controlan a la vaca con sonidos.
+        
+        **¿Cómo funciona en la práctica?**
+        1. Le pones el collar a los animales.
+        2. Abres tu celular y dibujas en el mapa dónde quieres que coman hoy.
+        3. Si la vaca intenta salir de esa zona, el collar hace un pitido fuerte.
+        4. Si la vaca ignora el sonido y sigue caminando, el collar le da una pequeña vibración o toque. El animal aprende rápido a no pasar del pitido.
+        5. **Ventaja:** Puedes mover al ganado a pastos nuevos todos los días desde tu oficina sin pagar sueldos por hacer cercos.
+        """)
