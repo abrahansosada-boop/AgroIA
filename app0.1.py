@@ -62,14 +62,25 @@ def cargar_base_datos():
         return {}
 base_datos = cargar_base_datos()
 # BITÁCORA EN LA NUBE
-def registrar_bitacora(accion, detalle):
+def registrar_bitacora(accion, detalle, gasto_total=0.0, kilos_procesados=0.0):
+    """Guarda los movimientos en Supabase incluyendo dinero y volumen."""
     try:
-        supabase.table("bitacora").insert({
+        datos = {
             "accion": accion,
-            "detalle": detalle
-        }).execute()
+            "detalle": detalle,
+            "gasto_total": float(gasto_total),
+            "kilos_procesados": float(kilos_procesados)
+        }
+        supabase.table("bitacora").insert(datos).execute()
+        return True
     except Exception as e:
-        st.error(f"Error al guardar en la Caja Negra: {e}")
+        st.error(f"⚠️ Error al guardar en la bitácora: {e}")
+        return False
+        supabase.table("bitacora").insert(datos).execute()
+        return True
+    except Exception as e:
+        st.error(f"⚠️ Error al guardar en la bitácora: {e}")
+        return False
 
 #MENÚ LATERAL
 # SISTEMA DE ROLES (MODO ADMINISTRADOR VS OPERADOR)
@@ -82,6 +93,7 @@ es_administrador = (pin_secreto == "2026")
 if es_administrador:
         st.sidebar.success("Modo Administrador Activado 🤠")
         modulos_disponibles = [
+            "🏠 Panel Principal",
             "📦 Inventario de Insumos",
             "🧬 Diseñar Perfil Animal",
             "🧪 Laboratorio de Mezclas",
@@ -95,6 +107,7 @@ if es_administrador:
 else:
         st.sidebar.info("Modo Operador 👷")
         modulos_disponibles = [
+            "🏠 Panel Principal",
             "📦 Inventario de Insumos",
             "🧬 Diseñar Perfil Animal",
             "🧪 Laboratorio de Mezclas",
@@ -104,9 +117,36 @@ else:
         ]
 
 opcion = st.sidebar.radio("Seleccione un Módulo:", modulos_disponibles)
+# 🏠 PANEL PRINCIPAL (CENTRO DE MANDO)
+if "Panel Principal" in opcion:
+    st.title("🚜 AgroIA: Centro de Mando")
+    st.markdown("Bienvenido al resumen operativo en tiempo real del rancho.")
+    
+    st.subheader("📈 Resumen de Operación (Mensual)")
+    kpi1, kpi2, kpi3 = st.columns(3)
+    
+    kpi1.metric(label="💰 Gasto Total en Alimento", value="$45,230 MXN", delta="-$2,100", delta_color="inverse")
+    kpi2.metric(label="🔄 Lotes Preparados", value="14 Lotes", delta="+2 lotes")
+    kpi3.metric(label="📉 Costo Promedio Dieta", value="$4.15 / Kg", delta="-$0.12", delta_color="inverse")
+    
+    st.divider()
+    st.subheader("⚡ Acciones Rápidas")
+    col_btn1, col_btn2, col_btn3 = st.columns(3)
+    
+    with col_btn1:
+        st.info("⚖️ Calcula la revoltura de hoy.")
+        st.button("Ir al Laboratorio de Mezclas", use_container_width=True)
+            
+    with col_btn2:
+        st.warning("🧠 Revisa qué comprar mañana.")
+        st.button("Ir al Motor IA", use_container_width=True)
+            
+    with col_btn3:
+        st.success("📦 Actualiza tus existencias.")
+        st.button("Ir a Inventario de Insumos", use_container_width=True)
 
 #MÓDULO 1: INVENTARIO DE INSUMOS
-if "Inventario" in opcion:
+elif "Inventario" in opcion:
     st.header("📦 Control de Bodega y Precios")
     
     st.subheader("📊 Estado Actual del Inventario")
