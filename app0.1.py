@@ -82,7 +82,7 @@ def registrar_bitacora(accion, detalle, gasto_total=0.0, kilos_procesados=0.0):
         st.error(f"⚠️ Error al guardar en la bitácora: {e}")
         return False
 
-#MENÚ LATERAL
+# MENÚ LATERAL
 # SISTEMA DE ROLES (MODO ADMINISTRADOR VS OPERADOR)
 st.sidebar.divider()
 st.sidebar.subheader("🔐 Nivel de Acceso")
@@ -95,11 +95,9 @@ if es_administrador:
         modulos_disponibles = [
             "🏠 Panel Principal",
             "📦 Inventario de Insumos",
-            "🧬 Diseñar Perfil Animal",
-            "🧪 Laboratorio de Mezclas",
+            "🧪 Super Laboratorio",
             "💰 Proyección Financiera",     
             "🕵️ Caja Negra (Bitácora)",     
-            "🧠 Motor IA",
             "💎 Bóveda Premium (IA)",
             "🪦 Gestión de Mortandad (Bajas)",
             "⚖️ Control de Peso (Báscula)"
@@ -109,40 +107,57 @@ else:
         modulos_disponibles = [
             "🏠 Panel Principal",
             "📦 Inventario de Insumos",
-            "🧬 Diseñar Perfil Animal",
-            "🧪 Laboratorio de Mezclas",
-            "🧠 Motor IA",
+            "🧪 Super Laboratorio",
             "🪦 Gestión de Mortandad (Bajas)",
             "⚖️ Control de Peso (Báscula)"
         ]
 
 opcion = st.sidebar.radio("Seleccione un Módulo:", modulos_disponibles)
+
 # 🏠 PANEL PRINCIPAL (CENTRO DE MANDO)
 if "Panel Principal" in opcion:
     st.title("🚜 AgroIA: Centro de Mando")
     st.markdown("Bienvenido al resumen operativo en tiempo real del rancho.")
     
+    # === EXTRACCIÓN FINANCIERA DE LA BÓVEDA (SUPABASE) ===
+    gasto_real = 0.0
+    lotes_reales = 0
+    costo_promedio = 0.0
+    
+    try:
+
+        respuesta_b = supabase.table("bitacora").select("gasto_total, kilos_procesados").execute()
+        if respuesta_b.data:
+            df_finanzas = pd.DataFrame(respuesta_b.data)
+            
+            gasto_real = df_finanzas['gasto_total'].sum()
+            
+            lotes_reales = len(df_finanzas[df_finanzas['gasto_total'] > 0])
+            
+            kilos_totales = df_finanzas['kilos_procesados'].sum()
+            if kilos_totales > 0:
+                costo_promedio = gasto_real / kilos_totales
+                
+    except Exception as e:
+        st.error(f"⚠️ Radar financiero desconectado: {e}")
+
     st.subheader("📈 Resumen de Operación (Mensual)")
     kpi1, kpi2, kpi3 = st.columns(3)
     
-    kpi1.metric(label="💰 Gasto Total en Alimento", value="$45,230 MXN", delta="-$2,100", delta_color="inverse")
-    kpi2.metric(label="🔄 Lotes Preparados", value="14 Lotes", delta="+2 lotes")
-    kpi3.metric(label="📉 Costo Promedio Dieta", value="$4.15 / Kg", delta="-$0.12", delta_color="inverse")
+    kpi1.metric(label="💰 Gasto Total Acumulado", value=f"${gasto_real:,.2f} MXN")
+    kpi2.metric(label="🔄 Lotes / Movimientos", value=f"{lotes_reales} Registros")
+    kpi3.metric(label="📉 Costo Promedio Histórico", value=f"${costo_promedio:,.2f} / Kg")
     
     st.divider()
     st.subheader("⚡ Acciones Rápidas")
-    col_btn1, col_btn2, col_btn3 = st.columns(3)
+    col_btn1, col_btn2 = st.columns(2)
     
     with col_btn1:
-        st.info("⚖️ Calcula la revoltura de hoy.")
-        st.button("Ir al Laboratorio de Mezclas", use_container_width=True)
+        st.info("⚖️ Calcula y optimiza tu revoltura (Manual o IA).")
+        st.button("Ir al Súper-Laboratorio", use_container_width=True)
             
     with col_btn2:
-        st.warning("🧠 Revisa qué comprar mañana.")
-        st.button("Ir al Motor IA", use_container_width=True)
-            
-    with col_btn3:
-        st.success("📦 Actualiza tus existencias.")
+        st.success("📦 Revisa y actualiza tus existencias.")
         st.button("Ir a Inventario de Insumos", use_container_width=True)
 
 #MÓDULO 1: INVENTARIO DE INSUMOS
@@ -311,337 +326,437 @@ elif "Inventario" in opcion:
                 
             except Exception as e:
                 st.error(f"❌ Los de traje cortaron la conexión: {e}")
-# MODULO 2: PERFIL ANIMAL
-elif "Perfil" in opcion:
-    st.header("🧬 Configuración de Inteligencia Genética")
+
+# SÚPER-LABORATORIO (CENTRO DE MANDO ABSOLUTO)
+elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
+    st.header("🧪 Súper-Laboratorio y Centro de Mando")
+    st.markdown("Diseña la genética, audita y optimiza las raciones alimenticias del rancho en una sola pantalla.")
+    st.divider()
+
+    # 1. GESTOR DE LOTES INTEGRADO 
+    st.subheader("🐄 1. Selección o Creación de Lote")
     
-    with st.form("perfil_animal"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            raza_sel = st.selectbox("1. Seleccione la Raza:", 
-                                   ["brahman", "nelore", "angus", "hereford", "brangus", "simbrah", "holstein"])
-            genero = st.radio("2. Género:", ["Macho", "Hembra"], horizontal=True)
-            proposito = st.selectbox("3. Propósito:", ["Carne", "Leche", "Semental", "Doble Propósito"])
-            
-        with col2:
-            edad = st.number_input("4. Edad (meses):", min_value=1, max_value=200, value=5)
-            peso = st.number_input("5. Peso Vivo Estimado (kg):", min_value=30, max_value=1500, value=180)
-            clima = st.slider("6. Temperatura Ambiente (°C):", 0, 50, 32)
-            
-        enviado = st.form_submit_button("🔥 GUARDAR Y ANALIZAR PERFIL")
-
-    if enviado:
-        #INTELIGENCIA VETERINARIA
-        dosis_desparasitante = peso / 50
-        costo_desparasitante = dosis_desparasitante * 2.5
-        
-        costo_vacunas_base = 45.0 
-        costo_salud_total = costo_desparasitante + costo_vacunas_base
-
-        st.session_state['perfil'] = {
-            "raza": raza_sel,
-            "genero": genero.lower(),
-            "edad": edad,
-            "proposito": proposito.lower(),
-            "clima": clima,
-            "peso": peso,
-            "costo_salud": costo_salud_total  
-        }
-        st.success(f"✅ Perfil de {raza_sel.upper()} guardado en memoria.")
-        # INTELIGENCIA GENÉTICA 2.0 (Matriz de Adaptabilidad)
-        st.divider()
-        st.subheader("🧬 Dictamen de Inteligencia Genética")
-
-        raza = raza_sel.lower()
-        
-        # Clasificación de Gamas Genéticas
-        razas_cebuinas = ["brahman", "nelore"] # Blindaje térmico y garrapata
-        razas_sinteticas = ["simbrah", "brangus"] # Equilibrio (motor europeo + chasis cebú)
-        razas_europeas = ["angus", "hereford"] # Explosión de carne, cero tolerancia al calor
-        razas_lecheras = ["holstein"] # Leche, estrés calórico crítico
-
-        # MATRIZ DE DECISIÓN POR CLIMA
-        if clima >= 35:
-            if raza in razas_europeas or raza in razas_lecheras:
-                st.error(f"❌ **INCOMPATIBILIDAD GRAVE:** Un {raza.title()} a {clima}°C sufrirá estrés calórico severo. Dejará de comer, no ganará peso y gastarás fortunas en medicinas.")
-                st.info("💡 **Solución IA:** Cambia inmediatamente a una gama Sintética (Ej. **Simbrah** o **Brangus**) o usa base Cebuina (**Brahman**).")
-            elif raza in razas_cebuinas:
-                st.success(f"✅ **ADAPTABILIDAD PERFECTA:** El {raza.title()} es un tanque de guerra para este calor. Ganancia lenta, pero segura y sin gastos médicos.")
-                if proposito.lower() == "carne":
-                     st.info("💡 **Tip para Carne:** Para acelerar la engorda, crúzalo con un toro europeo para sacar un 3/4 Europeo y 1/4 Cebú.")
-            elif raza in razas_sinteticas:
-                st.success(f"⭐ **RANGO PREMIUM (La Mejor Elección):** El {raza.title()} te da el balance perfecto. La sangre cebú le hace aguantar los {clima}°C y el motor europeo te dará los kilos rápido.")
-                
-        elif 22 <= clima < 35:
-            if raza in razas_europeas:
-                st.warning(f"⚠️ **RIESGO MODERADO:** A {clima}°C, un {raza.title()} está en su límite. Requerirá sombra artificial obligatoria y agua fresca constante para no mermar.")
-            elif raza in razas_lecheras:
-                st.warning(f"⚠️ **CUIDADO:** El {raza.title()} bajará su producción de leche. Requiere ventilación en galera.")
-            else:
-                st.success(f"✅ **CLIMA CONFORTABLE:** La genética {raza.title()} trabajará perfectamente a {clima}°C sin estrés.")
-                
-        else: # Clima Frío/Templado (< 22°C)
-            if raza in razas_cebuinas:
-                st.warning(f"⚠️ **ALERTA DE FRÍO:** A {clima}°C, las razas cebuinas ({raza.title()}) sufren. Gastarán lo que comen en calentarse en lugar de engordar.")
-                st.info("💡 **Solución IA:** Tienes el clima ideal para razas puras de carne. Usa **Angus** o **Hereford** y explotarán en kilos.")
-            elif raza in razas_europeas:
-                st.success(f"⭐ **RANGO PREMIUM:** El clima de {clima}°C es el paraíso para el {raza.title()}. Prepárate para conversiones de carne brutales y máxima rentabilidad.")
-            else:
-                 st.success(f"✅ **ADAPTABILIDAD BUENA:** El {raza.title()} se aclimatará bien a esta temperatura.")
-
-        st.divider()
-        st.subheader("💉 Protocolo Sanitario de Ingreso (Sugerido)")
-        st.markdown(f"**Recomendación para un {raza_sel.title()} de {peso} kg:**")
-        
-        med1, med2, med3 = st.columns(3)
-        med1.metric("Desparasitante (Ivermectina 1%)", f"{dosis_desparasitante:.1f} ml")
-        med2.metric("Vacunas Base", "Rabia + Clostridios + ADE")
-        med3.metric("Costo Médico Inicial", f"${costo_salud_total:.2f} MXN")
-        
-        st.caption("💡 *Nota: Un animal sano asimila mejor la dieta. Este costo de salud ya se guardó para tu proyección financiera.*")
-
-        if raza_sel in ["angus", "hereford", "holstein"] and clima > 30:
-            st.error(f"⚠️ ALERTA DE ADAPTABILIDAD: El {raza_sel.upper()} es de clima templado. A {clima}°C sufrirá estrés calórico severo.")
-        elif clima > 35:
-            st.warning("⚠️ ALERTA: Temperatura extrema. Se recomienda sombra y suplementación energética.")
-
-# MODULO 3
-elif "Laboratorio" in opcion:
-    st.header("🧪 Laboratorio de Mezclas y Riesgos")
+    tab_cargar, tab_crear = st.tabs(["📋 Cargar Lote Activo", "🧬 Crear Nuevo Lote (IA Genética)"])
     
-    if 'perfil' not in st.session_state:
-        st.warning("⚠️ Primero debe configurar el animal en el Módulo 2.")
-    else:
+    with tab_cargar:
+        col_act, col_ref = st.columns([3, 1])
+        
+        with col_ref:
+            st.button("🔄 Actualizar Lista", use_container_width=True)
+
+        try:
+            respuesta = supabase.table("perfiles_lotes").select("*").execute()
+            
+            lotes_guardados = respuesta.data
+            
+            if lotes_guardados:
+                nombres_lotes = [l["nombre_lote"] for l in lotes_guardados]
+                
+                with col_act:
+                    lote_elegido = st.selectbox("Selecciona el lote con el que trabajarás hoy:", nombres_lotes)
+                
+                if st.button("⚡ Activar Lote para Formulación", use_container_width=True):
+                    datos_lote = next(item for item in lotes_guardados if item["nombre_lote"] == lote_elegido)
+                    
+                    st.session_state['perfil'] = {
+                        "nombre": datos_lote["nombre_lote"],
+                        "raza": datos_lote["raza"],
+                        "genero": datos_lote["genero"],
+                        "proposito": datos_lote["proposito"],
+                        "edad": int(datos_lote["edad"]),
+                        "peso": float(datos_lote["peso_promedio"]),
+                        "clima": float(datos_lote["clima_local"]),
+                        "costo_salud": float(datos_lote["costo_salud"])
+                    }
+                    
+                    st.success(f"✅ ¡Lote **{lote_elegido}** activado! Baja a la sección de dietas.")
+            
+            else:
+                st.info("⚠️ No hay animales en la Nube. Ve a la pestaña 'Crear Nuevo Lote'.")
+        
+        except Exception as e:
+            st.error(f"Error con la bóveda de lotes: {e}")
+
+
+    with tab_crear:
+        st.info("💡 Diseña la genética. Al guardar, quedará blindado en la base de datos.")
+        
+        nombre_nuevo_lote = st.text_input("Dale un nombre a este grupo:")
+        
+        with st.form("perfil_animal"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                raza_sel = st.selectbox("1. Raza:", ["brahman", "nelore", "angus", "hereford", "brangus", "simbrah", "holstein"])
+                
+                genero = st.radio("2. Género:", ["Macho", "Hembra"], horizontal=True)
+                
+                proposito = st.selectbox("3. Propósito:", ["Carne", "Leche", "Semental", "Doble Propósito"])
+            
+            with col2:
+                edad = st.number_input("4. Edad (meses):", min_value=1, max_value=200, value=5)
+                
+                peso = st.number_input("5. Peso (kg):", min_value=30, max_value=1500, value=180)
+                
+                clima = st.slider("6. Clima (°C):", 0, 50, 32)
+            
+            enviado = st.form_submit_button("🔥 ANALIZAR Y GUARDAR PERFIL GENÉTICO")
+
+        if enviado:
+            dosis_desparasitante = peso / 50
+            
+            costo_desparasitante = dosis_desparasitante * 2.5
+            
+            costo_vacunas_base = 45.0 
+            
+            costo_salud_total = costo_desparasitante + costo_vacunas_base
+
+            st.divider()
+            
+            st.subheader("🧬 Dictamen de Inteligencia Genética")
+            
+            raza = raza_sel.lower()
+            
+            razas_cebuinas = ["brahman", "nelore"] 
+            
+            razas_sinteticas = ["simbrah", "brangus"] 
+            
+            razas_europeas = ["angus", "hereford"] 
+            
+            razas_lecheras = ["holstein"] 
+
+            if clima >= 35:
+                if raza in razas_europeas or raza in razas_lecheras:
+                    st.error(f"❌ **INCOMPATIBILIDAD GRAVE:** Un {raza.title()} a {clima}°C sufrirá.")
+                
+                elif raza in razas_cebuinas:
+                    st.success(f"✅ **ADAPTABILIDAD PERFECTA:** El {raza.title()} es un tanque.")
+                
+                elif raza in razas_sinteticas:
+                    st.success(f"⭐ **RANGO PREMIUM:** El {raza.title()} te da el balance perfecto.")
+            
+            elif 22 <= clima < 35:
+                if raza in razas_europeas:
+                    st.warning(f"⚠️ **RIESGO MODERADO:** A {clima}°C, un {raza.title()} está en su límite.")
+                
+                elif raza in razas_lecheras:
+                    st.warning(f"⚠️ **CUIDADO:** El {raza.title()} bajará su producción de leche.")
+                
+                else:
+                    st.success(f"✅ **CLIMA CONFORTABLE:** Trabajará perfectamente a {clima}°C sin estrés.")
+            
+            else: 
+                if raza in razas_cebuinas:
+                    st.warning(f"⚠️ **ALERTA DE FRÍO:** A {clima}°C, las razas cebuinas sufren.")
+                
+                elif raza in razas_europeas:
+                    st.success(f"⭐ **RANGO PREMIUM:** Paraíso para el {raza.title()}.")
+                
+                else:
+                    st.success(f"✅ **ADAPTABILIDAD BUENA:** Se aclimatará bien a esta temperatura.")
+
+            st.divider()
+            
+            st.subheader("💉 Protocolo Sanitario de Ingreso (Sugerido)")
+            
+            med1, med2, med3 = st.columns(3)
+            
+            med1.metric("Desparasitante", f"{dosis_desparasitante:.1f} ml")
+            
+            med2.metric("Vacunas Base", "Rabia + Clostridios + ADE")
+            
+            med3.metric("Costo Médico Inicial", f"${costo_salud_total:.2f} MXN")
+            
+            st.caption("💡 El costo de salud ya se guardó para tu proyección.")
+
+            if nombre_nuevo_lote:
+                try:
+                    supabase.table("perfiles_lotes").insert({
+                        "nombre_lote": nombre_nuevo_lote,
+                        "raza": raza_sel,
+                        "genero": genero,
+                        "proposito": proposito,
+                        "edad": edad,
+                        "peso_promedio": peso,
+                        "clima_local": clima,
+                        "costo_salud": costo_salud_total
+                    }).execute()
+                    
+                    st.success(f"✅ ¡Guardado! Ve a la pestaña 'Cargar Lote' y presiona el botón 'Actualizar Lista'.")
+                
+                except Exception as e:
+                    st.error(f"Error guardando en la Nube: {e}")
+            
+            else:
+                st.error("⚠️ Debes ponerle un nombre al lote arriba para poder guardarlo.")
+
+    # MODULO 2. SISTEMA DE FORMULACIÓN (REQUIERE LOTE ACTIVO)
+    if st.session_state.get('perfil') is not None:
         perf = st.session_state['perfil']
         peso = float(perf['peso'])
         clima = float(perf['clima'])
-        
+
+        st.divider()
+        st.info(f"🟢 **OPERANDO PARA:** Lote '{perf['nombre']}' | Raza: {perf['raza'].upper()} | Peso: {peso} kg | Clima: {clima}°C")
+
         st.subheader("🧠 Diagnóstico Nutricional Dinámico (IA)")
-        
-        consumo_base = peso * 0.03 # Un bovino come el 3% de su peso vivo en Materia Seca
-        prot_meta = 14.0 # Proteína estándar para engorda
-        
+        consumo_base = peso * 0.03
+        prot_meta = 14.0
+
         if clima >= 35:
-            consumo_real = consumo_base * 0.85 # La vaca come 15% menos por el calor sofocante
-            prot_meta = 16.0 # Tenemos que concentrar la proteína en menos bocado
-            st.error(f"🚨 **ALERTA DE ESTRÉS CALÓRICO ({clima}°C):** El animal está sofocado. Reducirá su consumo a **{consumo_real:.1f} kg/día**. La IA exige concentrar la dieta a **{prot_meta}% de Proteína** para mantener el ritmo de engorda.")
+            consumo_real = consumo_base * 0.85
+            prot_meta = 16.0
+            st.error(f"🚨 **ALERTA DE ESTRÉS CALÓRICO ({clima}°C):** El animal está sofocado. Reducirá su consumo a **{consumo_real:.1f} kg/día**. Se exige concentrar la dieta a **{prot_meta}% de Proteína**.")
         elif clima < 20:
-            consumo_real = consumo_base * 1.10 # Come más para generar calor corporal
-            prot_meta = 12.0 # Podemos relajar la proteína y meter más energía barata (grano)
-            st.info(f"❄️ **ALERTA DE FRÍO ({clima}°C):** El animal comerá más (**{consumo_real:.1f} kg/día**) para calentarse. La IA sugiere bajar proteína a **{prot_meta}%** y subir energía para ahorrar costos.")
+            consumo_real = consumo_base * 1.10
+            prot_meta = 12.0
+            st.info(f"❄️ **ALERTA DE FRÍO ({clima}°C):** El animal comerá más (**{consumo_real:.1f} kg/día**) para calentarse. Sugerimos bajar proteína a **{prot_meta}%** y subir energía.")
         else:
             consumo_real = consumo_base
-            st.success(f"✅ **CLIMA CONFORTABLE ({clima}°C):** Consumo normal proyectado de **{consumo_real:.1f} kg/día**. Meta sugerida de la dieta: **{prot_meta}% de Proteína**.")
+            st.success(f"✅ **CLIMA CONFORTABLE ({clima}°C):** Consumo normal proyectado de **{consumo_real:.1f} kg/día**. Meta sugerida: **{prot_meta}% de Proteína**.")
 
-        st.markdown("### 🚜 Auto-Formulador de Lote (Tolva/Revolvedora)")
-        st.markdown("Deja que la IA calcule los kilos exactos para preparar tu mezcla a nivel industrial.")
-        
-        col_ia1, col_ia2 = st.columns(2)
-        cabezas = col_ia1.number_input("Número de animales en el corral:", min_value=1, value=50, step=5)
-        dias_mezcla = col_ia2.number_input("¿Para cuántos días vas a preparar?", min_value=1, value=3, step=1)
-        
-        if st.button("🤖 Generar Receta para Tolva", use_container_width=True):
-            with st.spinner('Calculando proporciones de lote...'):
-                import time
-                time.sleep(1) # Efecto de procesamiento
-                
-                # 1. Escanear Bodega (Separar Energía y Proteína)
-                ing_energia = [ins for ins, datos in base_datos.items() if datos.get("energia_mcal", 0) >= 2.5]
-                ing_proteina = [ins for ins, datos in base_datos.items() if datos.get("proteina_pct", 0) >= 20.0]
-                
-                if not ing_energia or not ing_proteina:
-                    st.error("❌ Tu bodega no tiene suficientes ingredientes de alta energía (>2.5 Mcal) o alta proteína (>20%).")
-                else:
-                    base = ing_energia[0]
-                    prot = ing_proteina[0]
-                    
-                    prot_base = base_datos[base]["proteina_pct"]
-                    prot_fuerte = base_datos[prot]["proteina_pct"]
-                    
-                    if prot_meta <= prot_base or prot_meta >= prot_fuerte:
-                        st.warning(f"⚠️ Imposible formular. Necesitas ingredientes por debajo y por encima de {prot_meta}% de proteína.")
-                    else:
-                        # Matemáticas de Pearson para 1 animal / 1 día
-                        partes_prot = abs(prot_meta - prot_base)
-                        partes_base = abs(prot_fuerte - prot_meta)
-                        total_partes = partes_prot + partes_base
-                        
-                        kg_base_diario = (partes_base / total_partes) * consumo_real
-                        kg_prot_diario = (partes_prot / total_partes) * consumo_real
-                        
-                        # MULTIPLICADOR INDUSTRIAL
-                        kg_base_tolva = kg_base_diario * cabezas * dias_mezcla
-                        kg_prot_tolva = kg_prot_diario * cabezas * dias_mezcla
-                        total_tolva = kg_base_tolva + kg_prot_tolva
-                        costo_total_bache = ((kg_base_diario * base_datos[base]['costo_kg']) + (kg_prot_diario * base_datos[prot]['costo_kg'])) * cabezas * dias_mezcla
-                        
-                        st.success(f"✅ **¡Lote Calculado!** Mezcla esto en tu tolva para alimentar a **{cabezas} cabezas** durante **{dias_mezcla} días** (Asegurando {prot_meta}% de proteína).")
-                        
-                        c1, c2, c3 = st.columns(3)
-                        c1.metric(f"🌾 {base.title().replace('_', ' ')}", f"{kg_base_tolva:.0f} kg")
-                        c2.metric(f"🥩 {prot.title().replace('_', ' ')}", f"{kg_prot_tolva:.0f} kg")
-                        c3.metric("⚖️ Peso Total en Tolva", f"{total_tolva:.0f} kg", delta=f"${costo_total_bache:,.2f} MXN el Lote", delta_color="off")
-                        st.divider()
-                        if dias_mezcla > 5:
-                            st.warning("⚠️ **ALERTA DE FRESCURA:** Estás preparando alimento para más de 5 días. Si usas melaza o urea, hay alto riesgo de fermentación tóxica en la bodega. Vigila la humedad.")
-                        else:
-                            st.info("🛡️ **Frescura Garantizada:** Este lote se consumirá a tiempo antes de que los ingredientes activos se degraden.")
-        #BUSCADOR INTELIGENTE
-        st.subheader("🔎 Buscador Filtrado")
-        
-        filtro = st.radio(
-            "Filtrar ingredientes por aporte principal:",
-            ("Todos", "Alta Proteína (>20%)", "Alta Energía (>2.8 Mcal)", "Alta Fibra (>20%)"),
-            horizontal=True
-        )
-        
-        lista_filtrada = []
-        for insumo, datos in base_datos.items():
-            if filtro == "Todos":
-                lista_filtrada.append(insumo)
-            elif "Proteína" in filtro and datos.get("proteina_pct", 0) >= 20.0:
-                lista_filtrada.append(insumo)
-            elif "Energía" in filtro and datos.get("energia_mcal", 0) >= 2.8:
-                lista_filtrada.append(insumo)
-            elif "Fibra" in filtro and datos.get("fibra_pct", 0) >= 20.0:
-                lista_filtrada.append(insumo)
-        
-        if not lista_filtrada:
-            st.warning("No hay insumos en tu bodega que cumplan este filtro.")
+        tab_manual, tab_ia = st.tabs(["🛠️ Formulación Manual", "🤖 Piloto Automático (Motor IA)"])
 
-        if "receta_guardada_ia" in st.session_state:
-            st.success("🤖 Receta de la IA detectada en la nube.")
-            if st.button("📥 Importar Receta a la Mesa de Trabajo", key="btn_importar_unica"):
-                st.session_state["memoria_selector"] = st.session_state["receta_guardada_ia"]["ingredientes"]
-                for ins, kg in st.session_state["receta_guardada_ia"]["kilos"].items():
-                    st.session_state[f"kg_{ins}"] = kg
-        seleccionados = st.multiselect("Seleccione los ingredientes a utilizar:", lista_filtrada, key="memoria_selector")
-        
-        mezcla_final = []
-        total_kilos_mezcla = 0
-        
-        if seleccionados:
-            cols = st.columns(len(seleccionados))
-            for i, insumo in enumerate(seleccionados):
-                with cols[i]:
-                    kilos = st.number_input(f"Kg de {insumo}", min_value=0.0, step=1.0, key=f"kg_{insumo}")
-                    mezcla_final.append({"nombre": insumo, "kilos": kilos, "datos": base_datos[insumo]})
-                    total_kilos_mezcla += kilos
+        # PESTAÑA: MODO MANUAL (Limpia y purificada)
+        with tab_manual:
+            st.markdown("### ⚖️ Auditoría de Mezcla Manual")
+            
+            filtro = st.radio("Filtrar ingredientes por aporte principal:", ("Todos", "Alta Proteína (>20%)", "Alta Energía (>2.8 Mcal)", "Alta Fibra (>20%)"), horizontal=True)
 
-        #AUDITORÍA DE MEZCLA
-        if st.button("⚖️ AUDITAR MEZCLA"):
+            lista_filtrada = []
+            for insumo, datos in base_datos.items():
+                if filtro == "Todos": lista_filtrada.append(insumo)
+                elif "Proteína" in filtro and datos.get("proteina_pct", 0) >= 20.0: lista_filtrada.append(insumo)
+                elif "Energía" in filtro and datos.get("energia_mcal", 0) >= 2.8: lista_filtrada.append(insumo)
+                elif "Fibra" in filtro and datos.get("fibra_pct", 0) >= 20.0: lista_filtrada.append(insumo)
+
+            if not lista_filtrada: st.warning("No hay insumos en tu bodega que cumplan este filtro.")
+
+            if "receta_guardada_ia" in st.session_state:
+                st.success("🤖 Receta de la IA detectada en la memoria.")
+                if st.button("📥 Importar Receta a la Mesa de Trabajo", key="btn_importar_unica"):
+                    st.session_state["memoria_selector"] = st.session_state["receta_guardada_ia"]["ingredientes"]
+                    for ins, kg in st.session_state["receta_guardada_ia"]["kilos"].items():
+                        st.session_state[f"kg_{ins}"] = kg
+
+            seleccionados = st.multiselect("Seleccione los ingredientes a utilizar:", lista_filtrada, key="memoria_selector")
+
+            mezcla_final = []
+            total_kilos_mezcla = 0
+
+            if seleccionados:
+                cols = st.columns(len(seleccionados))
+                for i, insumo in enumerate(seleccionados):
+                    with cols[i]:
+                        kilos = st.number_input(f"Kg de {insumo}", min_value=0.0, step=1.0, key=f"kg_{insumo}")
+                        mezcla_final.append({"nombre": insumo, "kilos": kilos, "datos": base_datos[insumo]})
+                        total_kilos_mezcla += kilos
+
+            if st.button("⚖️ AUDITAR MEZCLA MANUAL"):
                 if total_kilos_mezcla > 0:
                     prot_acum = sum((item["kilos"] * item["datos"]["proteina_pct"]) for item in mezcla_final) / total_kilos_mezcla
                     ener_acum = sum((item["kilos"] * item["datos"]["energia_mcal"]) for item in mezcla_final) / total_kilos_mezcla
                     fibr_acum = sum((item["kilos"] * item["datos"]["fibra_pct"]) for item in mezcla_final) / total_kilos_mezcla
                     costo_tot = sum((item["kilos"] * item["datos"]["costo_kg"]) for item in mezcla_final)
-                    
+
                     st.session_state['mezcla'] = {
                         "proteina": prot_acum, "energia": ener_acum, "fibra": fibr_acum,
                         "costo_total": costo_tot, "total_kilos": total_kilos_mezcla,
-                        "costo_kg": costo_tot / total_kilos_mezcla,
-                        "detalle": mezcla_final
+                        "costo_kg": costo_tot / total_kilos_mezcla, "detalle": mezcla_final
                     }
-                    
                     st.success("✅ Auditoría completada")
-                    
-                    # MÉTRICAS PRINCIPALES
+
                     c1, c2, c3 = st.columns(3)
                     c1.metric("Proteína Cruda", f"{prot_acum:.2f}%")
                     c2.metric("Energía Metab.", f"{ener_acum:.2f} Mcal")
                     c3.metric("Fibra (FDN)", f"{fibr_acum:.2f}%")
 
-                    # DESGLOSE PROFUNDO DE NUTRIENTES
                     st.divider()
                     st.subheader("📊 Radiografía Detallada por Insumo")
-                    
                     datos_desglose = []
                     for item in mezcla_final:
                         kg_ingrediente = item["kilos"]
                         pct_mezcla = (kg_ingrediente / total_kilos_mezcla) * 100
                         kg_proteina = kg_ingrediente * (item["datos"]["proteina_pct"] / 100)
-                        
                         datos_desglose.append({
-                            "Insumo": item["nombre"].upper(),
-                            "Participación (%)": round(pct_mezcla, 2),
-                            "Aporte Proteína (kg)": round(kg_proteina, 2),
-                            "Costo en Mezcla ($)": round(kg_ingrediente * item["datos"]["costo_kg"], 2)
+                            "Insumo": item["nombre"].upper(), "Participación (%)": round(pct_mezcla, 2),
+                            "Aporte Proteína (kg)": round(kg_proteina, 2), "Costo en Mezcla ($)": round(kg_ingrediente * item["datos"]["costo_kg"], 2)
                         })
-                    
+
                     df_desglose = pd.DataFrame(datos_desglose)
                     st.dataframe(df_desglose, use_container_width=True)
-                    st.divider()
-                    st.subheader("🥧 Distribución de la Dieta")
                     
-                    col_graf1, col_graf2 = st.columns(2)
-                    
-                    with col_graf1:
-                        fig1 = px.pie(
-                            df_desglose, 
-                            values='Participación (%)', 
-                            names='Insumo', 
-                            title='Composición Física de la Mezcla',
-                            hole=0.4 
-                        )
-                        st.plotly_chart(fig1, use_container_width=True)
-                        
-                    with col_graf2:
-                        fig2 = px.pie(
-                            df_desglose, 
-                            values='Aporte Proteína (kg)', 
-                            names='Insumo', 
-                            title='Aporte de Proteína por Insumo',
-                            hole=0.4
-                        )
-                        st.plotly_chart(fig2, use_container_width=True)
+                    if prot_acum > 18.0: st.warning("⚠️ RIESGO: Nivel de proteína muy alto. Podría causar estrés renal.")
+                    elif fibr_acum < 10.0: st.warning("⚠️ RIESGO: Fibra muy baja. Peligro inminente de acidosis ruminal.")
 
-                    # ALERTAS VETERINARIAS PREVENTIVAS
-                    if prot_acum > 18.0:
-                        st.warning("⚠️ RIESGO: Nivel de proteína muy alto. Podría causar estrés renal en el animal y desperdicio de dinero.")
-                    elif fibr_acum < 10.0:
-                        st.warning("⚠️ RIESGO: Fibra muy baja. Peligro inminente de acidosis ruminal.")
+                    st.session_state['mezcla_lista'] = {
+                        "total_kilos": float(total_kilos_mezcla), "costo_total": float(costo_tot), "proteina": float(prot_acum)
+                    }
                 else:
                     st.error("Agregue kilos a los ingredientes.")
+
+            if 'mezcla_lista' in st.session_state:
+                st.divider()
+                if st.button("💾 Procesar Lote Manual y Registrar Gasto", use_container_width=True):
+                    m = st.session_state['mezcla_lista']
+                    detalle_txt = f"Lote MANUAL de {m['total_kilos']}kg al {m['proteina']:.1f}% de proteína."
+                    try:
+                        supabase.table("bitacora").insert({"accion": "Preparación Manual", "detalle": detalle_txt, "gasto_total": m['costo_total'], "kilos_procesados": m['total_kilos']}).execute()
+                        st.success(f"✅ ¡Dinero auditado! Se registraron ${m['costo_total']:,.2f} MXN en la Nube.")
+                        del st.session_state['mezcla_lista']
+                    except Exception as e:
+                        st.error(f"⚠️ Error al conectar con la bóveda: {e}")
+
+            st.divider()
+            st.subheader("⚖️ Corrector de Mezcla (Cuadrado de Pearson)")
+            
+            opciones_ingredientes = list(base_datos.keys())
+            
+            if not opciones_ingredientes:
+                st.warning("⚠️ Bodega vacía. Agrega insumos para usar el corrector.")
+            else:
+                col_p1, col_p2 = st.columns(2)
+                with col_p1:
+                    prot_actual = st.number_input("Proteína actual de la mezcla (%)", value=11.0, step=0.5)
+                    kilos_en_tolva = st.number_input("Kilos actuales en la revolvedora", value=1000, step=100)
+                with col_p2:
+                    prot_objetivo = st.number_input("Proteína objetivo (%)", value=14.0, step=0.5)
+                    # El selector ahora es seguro
+                    ing_refuerzo = st.selectbox("Selecciona ingrediente de refuerzo:", opciones_ingredientes)
+                
+                if ing_refuerzo:
+                    prot_refuerzo = base_datos[ing_refuerzo].get("proteina_pct", 0)
+
+                    if st.button("🧮 Calcular Corrección"):
+                        if prot_objetivo <= prot_actual or prot_objetivo >= prot_refuerzo:
+                            st.error("❌ Misión Imposible: La proteína objetivo debe estar ENTRE la actual y la del refuerzo.")
+                        else:
+                            partes_refuerzo = abs(prot_objetivo - prot_actual)
+                            partes_mezcla = abs(prot_refuerzo - prot_objetivo)
+                            kilos_a_añadir = (kilos_en_tolva / partes_mezcla) * partes_refuerzo
+                            st.success(f"**Resultado:** Añade **{kilos_a_añadir:.2f} kg** de **{ing_refuerzo.upper()}** para lograr el {prot_objetivo}%.")
+
+        # PESTAÑA: MOTOR IA
+        with tab_ia:
+            st.subheader("📊 Radar de Costo-Beneficio (Proteína Barata)")
+            analisis_prot = []
+            for ins, datos in base_datos.items():
+                if datos.get("proteina_pct", 0) > 2.0:
+                    costo_por_punto = datos["costo_kg"] / datos["proteina_pct"]
+                    analisis_prot.append({
+                        "Insumo": ins.title().replace("_", " "), "Costo por Punto": f"${costo_por_punto:.2f}",
+                        "Proteína Total": f"{datos['proteina_pct']}%", "Costo x Kg": f"${datos['costo_kg']:.2f}"
+                    })
+            st.dataframe(sorted(analisis_prot, key=lambda x: float(x["Costo por Punto"].replace('$', ''))), use_container_width=True)
+            st.divider()
+
+            st.markdown("### 🎛️ Motor de Optimización Lineal")
+            col_sis, col_etapa = st.columns(2)
+            with col_sis: sistema = st.radio("1. Sistema de Producción:", ["🏡 Estabulado (Corral)", "🌿 Pastoreo (Suplemento)"])
+            with col_etapa: etapa = st.selectbox("2. Etapa de Vida:", ["🍼 Inicio (Desarrollo de Rumen)", "📈 Desarrollo (Crecimiento)", "🥩 Finalización"])
+
+            usar_promotores = st.toggle("💊 Incluir Promotores / Ionóforos (Ej. Monensina)")
+            st.divider()
+
+            col1, col2 = st.columns(2)
+            with col1:
+                req_proteina = st.number_input("🎯 Objetivo de Proteína (%)", min_value=5.0, max_value=30.0, value=float(prot_meta), step=0.5)
+            with col2:
+                req_energia = st.number_input("⚡ Objetivo de Energía (Mcal)", min_value=1.0, max_value=4.0, value=2.5, step=0.1)
+
+
+            if st.button("🧠 GENERAR FÓRMULA ÓPTIMA"):
+                prob = pulp.LpProblem("Dieta_Barata", pulp.LpMinimize)
+                insumos = list(base_datos.keys())
+                x = pulp.LpVariable.dicts("Ingrediente", insumos, lowBound=0)
+
+                prob += pulp.lpSum([x[i] * base_datos[i]["costo_kg"] for i in insumos]), "Costo"
+                prob += pulp.lpSum([x[i] for i in insumos]) == 100, "Peso_100"
+                prob += pulp.lpSum([x[i] * base_datos[i]["proteina_pct"] for i in insumos]) >= req_proteina * 100, "Req_Prot"
+                prob += pulp.lpSum([x[i] * base_datos[i]["energia_mcal"] for i in insumos]) >= req_energia * 100, "Req_Ener"
+
+                for i in insumos:
+                    if "max_pct" in base_datos[i]:
+                        prob += x[i] <= base_datos[i]["max_pct"], f"Max_{i}"
+
+                toxicos = [i for i in ["urea_agricola", "pollinaza", "harina_pescado"] if i in insumos]
+                if "urea_agricola" in toxicos: prob += x["urea_agricola"] <= 0.5, "Tope_Urea"
+                if "pollinaza" in toxicos: prob += x["pollinaza"] <= 12.0, "Tope_Pollinaza"
+                if "harina_pescado" in toxicos: prob += x["harina_pescado"] <= 4.0, "Tope_Pescado"
+                if len(toxicos) >= 2: prob += pulp.lpSum([x[i] for i in toxicos]) <= 11.0, "Colchon_Paranoia_Palatabilidad"
+
+                prob.solve()
+
+                if pulp.LpStatus[prob.status] == "Optimal":
+                    resultados = []
+                    costo_cien_kg = 0
+                    for i in insumos:
+                        if x[i].varValue > 0.01:
+                            costo_ing = x[i].varValue * base_datos[i]["costo_kg"]
+                            costo_cien_kg += costo_ing
+                            resultados.append({
+                                "Insumo": i.upper(), "Kilos por 100kg": round(x[i].varValue, 2),
+                                "Costo ($)": round(costo_ing, 2)
+                            })
+
+                    st.session_state['solucion_ia'] = {
+                        "df": pd.DataFrame(resultados), "costo_kg": costo_cien_kg / 100,
+                        "detalles_ia": { "ingredientes": [i for i in insumos if x[i].varValue > 0.01], "kilos": {i: float(x[i].varValue) for i in insumos if x[i].varValue > 0.01} },
+                        "proteina_log": req_proteina, "energia_log": req_energia
+                    }
+                    st.balloons()
+                else:
+                    st.session_state['solucion_ia'] = None
+                    st.error("❌ Misión Imposible. Faltan ingredientes para esta meta.")
+
+            if 'solucion_ia' in st.session_state and st.session_state['solucion_ia'] is not None:
+                sol = st.session_state['solucion_ia']
+
+                st.success("✅ ¡Fórmula óptima encontrada!")
+                st.title(f"💰 Costo final proyectado: ${sol['costo_kg']:.2f} MXN / kg")
+                st.dataframe(sol['df'], use_container_width=True, hide_index=True)
+
+                st.divider()
+                st.markdown("### 🚜 Auto-Formulador de Lote (Revolvedora IA)")
+                st.info(f"Usando el consumo biológico calculado: **{consumo_real:.1f} kg/día** por animal.")
+
+                with st.form("form_tolva_ia"):
+                    c_lote1, c_lote2 = st.columns(2)
+                    with c_lote1: num_cabezas = st.number_input("Número de Animales a alimentar:", min_value=1, value=50, step=5)
+                    with c_lote2: dias_dieta = st.number_input("¿Para cuántos días vas a preparar?", min_value=1, value=3, step=1)
                     
-    # CORRECTOR DE TOLVA (PEARSON)
-    st.divider()
-    st.subheader("⚖️ Corrector de Mezcla (Cuadrado de Pearson)")
-    st.markdown("Calcula cuánto ingrediente de 'refuerzo' añadir para corregir la proteína de una mezcla ya existente.")
+                    btn_tolva = st.form_submit_button("🤖 Generar Receta de Tolva y Pagar Lote", use_container_width=True)
 
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        prot_actual = st.number_input("Proteína actual de la mezcla (%)", value=11.0, step=0.5)
-        kilos_en_tolva = st.number_input("Kilos actuales en la revolvedora", value=1000, step=100)
-    with col_p2:
-        prot_objetivo = st.number_input("Proteína objetivo (%)", value=14.0, step=0.5)
-        ing_refuerzo = st.selectbox("Selecciona ingrediente de refuerzo:", list(base_datos.keys()))
-        prot_refuerzo = base_datos[ing_refuerzo]["proteina_pct"]
+                if btn_tolva:
+                    kilos_totales_ia = num_cabezas * consumo_real * dias_dieta
+                    costo_lote_ia = kilos_totales_ia * sol['costo_kg']
 
-    if st.button("🧮 Calcular Corrección"):
-        # Lógica del Cuadrado de Pearson
-        if prot_objetivo <= prot_actual or prot_objetivo >= prot_refuerzo:
-            st.error("Misión Imposible: La proteína objetivo debe estar ENTRE la actual y la del refuerzo.")
-        else:
-            # Partes del refuerzo = |Prot Objetivo - Prot Actual|
-            # Partes de la mezcla = |Prot Refuerzo - Prot Objetivo|
-            partes_refuerzo = abs(prot_objetivo - prot_actual)
-            partes_mezcla = abs(prot_refuerzo - prot_objetivo)
-            total_partes = partes_refuerzo + partes_mezcla
-            
-            # Kilos de refuerzo a añadir = (Kilos en tolva / Partes mezcla) * Partes refuerzo
-            kilos_a_añadir = (kilos_en_tolva / partes_mezcla) * partes_refuerzo
-            nuevo_total = kilos_en_tolva + kilos_a_añadir
-            
-            st.success(f"**Resultado:** Añade **{kilos_a_añadir:.2f} kg** de **{ing_refuerzo.upper()}**.")
-            st.info(f"Tendrás un total de **{nuevo_total:.2f} kg** al **{prot_objetivo}%** de proteína.")
-            
-            registrar_bitacora("Corrección Pearson", f"Se corrigió tolva de {kilos_en_tolva}kg al {prot_objetivo}% usando {ing_refuerzo}.")
+                    st.success(f"✅ **¡Tolva Calculada!** Mezcla exactamente esto en tu revolvedora para **{kilos_totales_ia:,.0f} kg** totales:")
 
-#MÓDULO 4: PROYECCIÓN FINANCIERA
+                    receta_tolva = []
+                    for index, row in sol['df'].iterrows():
+                        kg_insumo_tolva = (row["Kilos por 100kg"] / 100) * kilos_totales_ia
+                        receta_tolva.append({"Insumo": row["Insumo"], "Kilos a echar a la Tolva": round(kg_insumo_tolva, 1)})
+
+                    st.dataframe(pd.DataFrame(receta_tolva), use_container_width=True, hide_index=True)
+                    st.metric("💰 Costo Total del Lote", f"${costo_lote_ia:,.2f} MXN")
+
+                    try:
+                        detalle = f"Lote IA Tolva: {kilos_totales_ia:,.0f}kg al {sol['proteina_log']}% de prot."
+                        supabase.table("bitacora").insert({"accion": "Preparación IA", "detalle": detalle, "gasto_total": costo_lote_ia, "kilos_procesados": kilos_totales_ia}).execute()
+
+                        st.session_state['mezcla'] = {
+                            "proteina": sol['proteina_log'], "energia": sol['energia_log'], "fibra": 10.0,
+                            "costo_total": costo_lote_ia, "total_kilos": kilos_totales_ia,
+                            "costo_kg": sol['costo_kg'], "detalle": "Fórmula IA Optimizada"
+                        }
+                        st.success(f"✅ ¡Gastos Registrados! Ya puedes ir al Módulo 4: Proyecciones Financieras.")
+                    except Exception as e:
+                        st.error(f"⚠️ Error al registrar en la bóveda: {e}")
+
+# MÓDULO 4: PROYECCIÓN FINANCIERA
 elif "Proyección" in opcion:
     st.header("📈 Centro de Control Financiero")
-    
     if 'perfil' not in st.session_state or 'mezcla' not in st.session_state:
         st.error("⚠️ Datos incompletos. Configure Perfil (Módulo 2) y Mezcla (Módulo 3).")
     else:
@@ -789,15 +904,33 @@ elif "Caja Negra" in opcion:
     
     st.divider()
 
-    col_graf1, col_graf2 = st.columns(2)
-    
-    with col_graf1:
-        st.markdown("**💸 Fuga de Capital (Gasto x Insumo)**")
-        st.info("📊 Aquí conectaremos una gráfica visual de tus gastos.")
-        
-    with col_graf2:
-        st.markdown("**📅 Tendencia de Costo de Producción**")
-        st.info("📈 Aquí pondremos una línea de tiempo del costo.")
+    try:
+        respuesta = supabase.table("bitacora").select("*").order("fecha", desc=True).execute()
+        if respuesta.data:
+            df_bitacora = pd.DataFrame(respuesta.data)
+            df_bitacora['fecha'] = pd.to_datetime(df_bitacora['fecha'])
+            
+            df_gastos = df_bitacora[df_bitacora['gasto_total'] > 0]
+            
+            col_graf1, col_graf2 = st.columns(2)
+            with col_graf1:
+                st.markdown("**💸 Flujo de Capital por Acción**")
+                if not df_gastos.empty:
+                    fig_bar = px.bar(df_gastos, x='accion', y='gasto_total', color='accion', title="Dinero Invertido/Perdido")
+                    st.plotly_chart(fig_bar, use_container_width=True)
+                else:
+                    st.info("Aún no hay gastos registrados.")
+                    
+            with col_graf2:
+                st.markdown("**📅 Tendencia de Inversión**")
+                if not df_gastos.empty:
+                    df_tiempo = df_gastos.groupby(df_gastos['fecha'].dt.date)['gasto_total'].sum().reset_index()
+                    fig_line = px.line(df_tiempo, x='fecha', y='gasto_total', markers=True, title="Gasto Histórico")
+                    st.plotly_chart(fig_line, use_container_width=True)
+                else:
+                    st.info("Aún no hay tendencia.")
+    except Exception as e:
+        st.error(f"Falla de despliegue en Caja Negra: {e}")
         
     st.divider()
     
@@ -847,129 +980,6 @@ elif "Caja Negra" in opcion:
     except Exception as e:
         st.error(f"Error al leer la Caja Negra: {e}")
             
-
-#MÓDULO 6: AUTO-FORMULACIÓN (IA)
-elif "Motor IA" in opcion:
-    st.header("🤖 Motor de Optimización Lineal (IA)")
-    st.markdown("Dile a la máquina qué nutrientes necesitas y ella calculará la receta **más barata posible** respetando los límites de salud del animal.")
-
-    st.subheader("📊 Radar de Costo-Beneficio (Proteína Barata)")
-    st.info("La IA evalúa todos tus ingredientes y los ordena mostrándote cuál te da más proteína por cada peso invertido hoy.")
-
-    analisis_prot = []
-    for ins, datos in base_datos.items():
-        if datos.get("proteina_pct", 0) > 2.0: 
-            costo_por_punto = datos["costo_kg"] / datos["proteina_pct"]
-            analisis_prot.append({
-                "Insumo": ins.title().replace("_", " "), 
-                "Costo por Punto": f"${costo_por_punto:.2f}", 
-                "Proteína Total": f"{datos['proteina_pct']}%", 
-                "Costo x Kg": f"${datos['costo_kg']:.2f}"
-            })
-
-    analisis_prot = sorted(analisis_prot, key=lambda x: float(x["Costo por Punto"].replace('$', '')))
-    st.dataframe(analisis_prot, use_container_width=True)
-    st.divider()
-
-# TABLERO DE CONTROL 
-    st.markdown("### 🎛️ Configuración del Lote")
-    
-    col_sis, col_etapa = st.columns(2)
-    with col_sis:
-        sistema = st.radio("1. Sistema de Producción:", ["🏡 Estabulado (Corral)", "🌿 Pastoreo (Suplemento)"])
-        
-    with col_etapa:
-        etapa = st.selectbox("2. Etapa de Vida:", ["🍼 Inicio (Desarrollo de Rumen)", "📈 Desarrollo (Crecimiento)", "🥩 Finalización"])
-
-    usar_promotores = st.toggle("💊 Incluir Promotores / Ionóforos (Ej. Monensina)")
-    st.divider()
-
-    col1, col2 = st.columns(2)
-    with col1:
-        req_proteina = st.number_input("🎯 Objetivo de Proteína (%)", min_value=5.0, max_value=30.0, value=14.0, step=0.5)
-    with col2:
-        req_energia = st.number_input("⚡ Objetivo de Energía (Mcal)", min_value=1.0, max_value=4.0, value=2.5, step=0.1)
-
-    if st.button("🧠 GENERAR FÓRMULA ÓPTIMA"):
-        prob = pulp.LpProblem("Dieta_Barata", pulp.LpMinimize)
-        insumos = list(base_datos.keys())
-        x = pulp.LpVariable.dicts("Ingrediente", insumos, lowBound=0)
-
-        # LA META: Minimizar costo total
-        prob += pulp.lpSum([x[i] * base_datos[i]["costo_kg"] for i in insumos]), "Costo"
-
-        # RESTRICCIONES 
-        prob += pulp.lpSum([x[i] for i in insumos]) == 100, "Peso_100"
-        prob += pulp.lpSum([x[i] * base_datos[i]["proteina_pct"] for i in insumos]) >= req_proteina * 100, "Req_Prot"
-        prob += pulp.lpSum([x[i] * base_datos[i]["energia_mcal"] for i in insumos]) >= req_energia * 100, "Req_Ener"
-        
-        for i in insumos:
-            if "max_pct" in base_datos[i]:
-                prob += x[i] <= base_datos[i]["max_pct"], f"Max_{i}"
-
-        prob.solve()
-
-        if pulp.LpStatus[prob.status] == "Optimal":
-            # GUARDAR RESULTADO EN MEMORIA 
-            resultados = []
-            costo_cien_kg = 0
-            for i in insumos:
-                kilos_sugeridos = x[i].varValue
-                if kilos_sugeridos > 0.01:
-                    costo_ing = kilos_sugeridos * base_datos[i]["costo_kg"]
-                    costo_cien_kg += costo_ing
-                    resultados.append({
-                        "Insumo": i.upper(),
-                        "Kilos a mezclar (por cada 100kg)": round(kilos_sugeridos, 2),
-                        "Costo en la dieta ($)": round(costo_ing, 2)
-                    })
-            
-            st.session_state['solucion_ia'] = {
-                "df": pd.DataFrame(resultados),
-                "costo_kg": costo_cien_kg / 100,
-                "detalles_ia": {
-                    "ingredientes": [i for i in insumos if x[i].varValue > 0.01],
-                    "kilos": {i: float(x[i].varValue) for i in insumos if x[i].varValue > 0.01}
-                }
-            }
-            st.balloons()
-            registrar_bitacora("Motor IA", f"Fórmula generada. Costo proyectado: ${costo_cien_kg/100:.2f}/kg.")
-        else:
-            st.session_state['solucion_ia'] = None
-            st.error("❌ Misión Imposible. La bodega no tiene ingredientes suficientes para esta meta.")
-
-    # BLOQUE DE VISUALIZACIÓN 
-    if 'solucion_ia' in st.session_state and st.session_state['solucion_ia'] is not None:
-        sol = st.session_state['solucion_ia']
-        
-        st.success("✅ ¡Fórmula óptima encontrada!")
-        st.title(f"💰 Costo final proyectado: ${sol['costo_kg']:.2f} MXN / kg")
-        st.dataframe(sol['df'], use_container_width=True, hide_index=True)
-        
-        # PUENTE AL LABORATORIO 
-        st.divider()
-        if st.button("💾 Enviar Receta a Memoria de Mezclado"):
-            st.session_state["receta_guardada_ia"] = sol['detalles_ia']
-            st.info("📥 Receta enviada. Ve al Módulo 3 y pícale a 'Importar Receta IA'.")
-
-        # ESCALADOR LOGÍSTICO
-        st.divider()
-        st.subheader("🚜 Escalador Logístico (Proyección de Compras)")
-        c_lote1, c_lote2, c_lote3 = st.columns(3)
-        with c_lote1: num_cabezas = st.number_input("Número de Animales", value=100, step=10)
-        with c_lote2: consumo_cab = st.number_input("Consumo (kg/animal/día)", value=10.0, step=0.5)
-        with c_lote3: dias_dieta = st.number_input("Días de Alimentación", value=30, step=5)
-            
-        if st.button("📦 Calcular Toneladas a Comprar", use_container_width=True):
-            kilos_totales = num_cabezas * consumo_cab * dias_dieta
-            ton_totales = kilos_totales / 1000
-            st.success(f"**Requerimiento Total del Lote:** {ton_totales:,.1f} Toneladas.")
-            
-            df_compra = sol['df'].copy()
-            df_compra["Toneladas a Pedir"] = (df_compra["Kilos a mezclar (por cada 100kg)"] / 100) * ton_totales
-            df_compra["Toneladas a Pedir"] = df_compra["Toneladas a Pedir"].apply(lambda x: f"{x:,.2f} Ton")
-            st.dataframe(df_compra[["Insumo", "Toneladas a Pedir"]], use_container_width=True, hide_index=True)
-            registrar_bitacora("Cálculo Logístico", f"Proyección de {ton_totales:.1f} Ton para {num_cabezas} animales.")
 # MÓDULO 7: GESTIÓN DE MORTANDAD Y BAJAS
 elif "Mortandad" in opcion:
     st.header("🪦 Gestor de Mortandad y Pérdidas")
