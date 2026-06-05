@@ -1,65 +1,63 @@
 {
-    "sorgo_grano": {
-        "proteina_pct": 8.5,
-        "energia_mcal": 3.1,
-        "fibra_pct": 2.5,
-        "costo_kg": 5.2,
-        "materia_seca_pct": 89.0,
-        "stock_kg": 5000,
-        "max_pct": 60.0
-    },
-    "maiz_molido": {
-        "proteina_pct": 8.0,
-        "energia_mcal": 3.3,
-        "fibra_pct": 2.2,
-        "costo_kg": 3.29,
-        "materia_seca_pct": 88.0,
-        "stock_kg": 8000,
-        "max_pct": 65.0
-    },
-    "pasta_de_soya": {
-        "proteina_pct": 44.0,
-        "energia_mcal": 2.9,
-        "fibra_pct": 7.0,
-        "costo_kg": 11.5,
-        "materia_seca_pct": 90.0,
-        "stock_kg": 2000,
-        "max_pct": 20.0
-    },
-    "salvado_trigo": {
-        "proteina_pct": 15.0,
-        "energia_mcal": 2.5,
-        "fibra_pct": 10.0,
-        "costo_kg": 4.5,
-        "materia_seca_pct": 89.0,
-        "stock_kg": 1500,
-        "max_pct": 25.0
-    },
-    "rastrojo_maiz": {
-        "proteina_pct": 4.0,
-        "energia_mcal": 1.8,
-        "fibra_pct": 35.0,
-        "costo_kg": 1.5,
-        "materia_seca_pct": 90.0,
-        "stock_kg": 10000,
-        "max_pct": 40.0
-    },
-    "pollinaza": {
-        "proteina_pct": 22.0,
-        "energia_mcal": 2.0,
-        "fibra_pct": 15.0,
-        "costo_kg": 2.0,
-        "materia_seca_pct": 85.0,
-        "stock_kg": 3000,
-        "max_pct": 15.0
-    },
-    "urea_agricola": {
-        "proteina_pct": 281.0,
-        "energia_mcal": 0.0,
-        "fibra_pct": 0.0,
-        "costo_kg": 18.0,
-        "materia_seca_pct": 99.0,
-        "stock_kg": 500,
-        "max_pct": 1.5
-    }
+  "sorgo_grano": {
+    "proteina_pct": 8.5, "energia_mcal": 3.1, "fibra_pct": 2.5, "costo_kg": 5.2, "materia_seca_pct": 89.0, "stock_kg": 0, "max_pct": 60.0
+  },
+  "maiz_molido": {
+    "proteina_pct": 8.0, "energia_mcal": 3.3, "fibra_pct": 2.2, "costo_kg": 3.29, "materia_seca_pct": 88.0, "stock_kg": 0, "max_pct": 65.0
+  },
+  "pasta_de_soya": {
+    "proteina_pct": 44.0, "energia_mcal": 2.9, "fibra_pct": 7.0, "costo_kg": 11.5, "materia_seca_pct": 90.0, "stock_kg": 0, "max_pct": 20.0
+  },
+  "salvado_trigo": {
+    "proteina_pct": 15.0, "energia_mcal": 2.5, "fibra_pct": 10.0, "costo_kg": 4.5, "materia_seca_pct": 89.0, "stock_kg": 0, "max_pct": 25.0
+  },
+  "rastrojo_maiz": {
+    "proteina_pct": 4.0, "energia_mcal": 1.8, "fibra_pct": 35.0, "costo_kg": 1.5, "materia_seca_pct": 90.0, "stock_kg": 0, "max_pct": 40.0
+  },
+  "pollinaza": {
+    "proteina_pct": 22.0, "energia_mcal": 2.0, "fibra_pct": 15.0, "costo_kg": 2.0, "materia_seca_pct": 85.0, "stock_kg": 0, "max_pct": 15.0
+  },
+  "urea_agricola": {
+    "proteina_pct": 281.0, "energia_mcal": 0.0, "fibra_pct": 0.0, "costo_kg": 18.0, "materia_seca_pct": 99.0, "stock_kg": 0, "max_pct": 1.5
+  },
+  "melaza_cana": {
+    "proteina_pct": 4.0, "energia_mcal": 2.6, "fibra_pct": 0.0, "costo_kg": 4.5, "materia_seca_pct": 75.0, "stock_kg": 0, "max_pct": 10.0
+  },
+  "pasta_de_canola": {
+    "proteina_pct": 36.0, "energia_mcal": 2.6, "fibra_pct": 12.0, "costo_kg": 8.8, "materia_seca_pct": 90.0, "stock_kg": 0, "max_pct": 15.0
+  },
+  "ddg_maiz": {
+    "proteina_pct": 27.0, "energia_mcal": 3.0, "fibra_pct": 8.5, "costo_kg": 8.5, "materia_seca_pct": 88.0, "stock_kg": 0, "max_pct": 20.0
+  },
+  "silo_de_maiz": {
+    "proteina_pct": 8.0, "energia_mcal": 1.5, "fibra_pct": 22.0, "costo_kg": 1.8, "materia_seca_pct": 35.0, "stock_kg": 0, "max_pct": 60.0
+  },
+  "premezcla_mineral": {
+    "proteina_pct": 0.0, "energia_mcal": 0.0, "fibra_pct": 0.0, "costo_kg": 25.0, "materia_seca_pct": 95.0, "stock_kg": 0, "max_pct": 3.0
+  },
+  "harina_pescado": {
+   "proteina_pct": 60.0, "energia_mcal": 2.9, "fibra_pct": 1.0, "costo_kg": 28.0, "materia_seca_pct": 92.0, "stock_kg": 0, "max_pct": 5.0
+  },
+  "avena_grano": {
+    "proteina_pct": 11.5, "energia_mcal": 2.8, "fibra_pct": 12.0, "costo_kg": 6.50, "materia_seca_pct": 89.0, "stock_kg": 0, "max_pct": 30.0
+  },
+  "cebada_grano": {
+    "proteina_pct": 11.0, "energia_mcal": 3.0, "fibra_pct": 6.0, "costo_kg": 6.00, "materia_seca_pct": 88.0, "stock_kg": 0, "max_pct": 40.0
+  },
+  "paca_zacate_tropical": {
+    "proteina_pct": 7.0, "energia_mcal": 1.8, "fibra_pct": 38.0, "costo_kg": 1.50, "materia_seca_pct": 90.0, "stock_kg": 0
+  },
+  "harina_de_hueso": {
+    "proteina_pct": 45.0, "energia_mcal": 2.0, "fibra_pct": 1.0, "costo_kg": 12.00, "materia_seca_pct": 95.0, "stock_kg": 0, "max_pct": 1.5
+  },
+  "leguminosa_ramoneo_leucaena": {
+    "proteina_pct": 22.0, "energia_mcal": 2.2, "fibra_pct": 20.0, "costo_kg": 0.80, "materia_seca_pct": 90.0, "stock_kg": 0, "max_pct": 25.0
+  },
+  "kudzu_arbustiva": {
+    "proteina_pct": 16.0, "energia_mcal": 2.0, "fibra_pct": 28.0, "costo_kg": 0.90, "materia_seca_pct": 90.0, "stock_kg": 0, "max_pct": 30.0
+  },
+  "milcahual_post_cosecha": {
+    "proteina_pct": 7.5, "energia_mcal": 1.9, "fibra_pct": 42.0, "costo_kg": 0.50, "materia_seca_pct": 90.0, "stock_kg": 0
+  }
+  
 }
