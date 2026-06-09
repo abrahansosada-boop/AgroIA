@@ -155,19 +155,22 @@ if "Panel Principal" in opcion:
     
     st.divider()
     st.subheader("⚡ Acciones Rápidas")
+
+    def saltar_a_lab():
+        st.session_state["modulo_actual"] = "Super Laboratorio"
+
+    def saltar_a_inv():
+        st.session_state["modulo_actual"] = "Inventario de Insumos"
+
     col_btn1, col_btn2 = st.columns(2)
 
     with col_btn1:
         st.info("⚖️ Calcula y optimiza tu revoltura (Manual o IA).")
-        if st.button("Ir al Súper-Laboratorio", use_container_width=True):
-            st.session_state["modulo_actual"] = "Super Laboratorio"
-            st.rerun()
+        st.button("Ir al Súper-Laboratorio", use_container_width=True, on_click=saltar_a_lab)
 
     with col_btn2:
         st.success("📦 Revisa y actualiza tus existencias.")
-        if st.button("Ir a Inventario de Insumos", use_container_width=True):
-            st.session_state["modulo_actual"] = "Inventario de Insumos"
-            st.rerun()  
+        st.button("Ir a Inventario de Insumos", use_container_width=True, on_click=saltar_a_inv)
 
 #MÓDULO 1: INVENTARIO DE INSUMOS
 elif "Inventario" in opcion:
@@ -408,9 +411,7 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
                 
                 clima = st.slider("6. Clima (°C):", 0, 50, 32)
             
-            enviado = st.form_submit_button("🔥 ANALIZAR Y GUARDAR PERFIL GENÉTICO")
-
-        st.markdown("### 💊 Seleccione Protocolo Sanitario (QFB)")
+            st.markdown(" 💊 Seleccione Protocolo Sanitario")
         col_med1, col_med2 = st.columns(2)
         with col_med1:
             nombres_desp = [d["nombre"] for d in botiquin["desparasitantes"].values()]
@@ -419,8 +420,8 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
             nombres_vac = [d["nombre"] for d in botiquin["vacunas"].values()]
             vac_sel = st.selectbox("Vacuna Base", nombres_vac)
 
+    
         enviado = st.form_submit_button("🔥 ANALIZAR Y GUARDAR PERFIL GENÉTICO")
-
         if enviado:
             datos_desp = next(d for d in botiquin["desparasitantes"].values() if d["nombre"] == desp_sel)
             datos_vac = next(d for d in botiquin["vacunas"].values() if d["nombre"] == vac_sel)
