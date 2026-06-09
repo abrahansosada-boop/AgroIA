@@ -34,12 +34,18 @@ if not st.session_state["autenticado"]:
             elif password != "":
                 st.error("❌ Contraseña incorrecta.")
     st.stop()
+ 
+# CONFIGURACION
+st.set_page_config(page_title="AgroIA v4.0", page_icon="🐄", layout="wide")
+st.title("🌾 Sistema de Inteligencia Agropecuaria v4.0")
 
-#CONFIGURACIÓN
-st.set_page_config(page_title="AgroIA v3.1", page_icon="🐄", layout="wide")
-st.title("🌾 Sistema de Inteligencia Agropecuaria v3.1")
-
-#CARGAR DATOS
+# CARGAR DATOS
+try:
+    with open("botiquin.json", "r", encoding="utf-8") as f:
+        botiquin = json.load(f)
+except FileNotFoundError:
+    st.error("⚠️ Falta el archivo botiquin.json. El módulo veterinario no funcionará.")
+    botiquin = {"desparasitantes": {}, "vacunas": {}}
 def cargar_base_datos():
     try:
 
@@ -112,14 +118,13 @@ else:
             "⚖️ Control de Peso (Báscula)"
         ]
 
-opcion = st.sidebar.radio("Seleccione un Módulo:", modulos_disponibles)
+opcion = st.sidebar.radio("Seleccione un Módulo:", ["Panel Principal", "Inventario de Insumos", "Super Laboratorio", "Proyección Financiera", "Caja Negra (Bitácora)"], key="modulo_actual")
 
 # 🏠 PANEL PRINCIPAL (CENTRO DE MANDO)
 if "Panel Principal" in opcion:
     st.title("🚜 AgroIA: Centro de Mando")
     st.markdown("Bienvenido al resumen operativo en tiempo real del rancho.")
     
-    # === EXTRACCIÓN FINANCIERA DE LA BÓVEDA (SUPABASE) ===
     gasto_real = 0.0
     lotes_reales = 0
     costo_promedio = 0.0
@@ -151,14 +156,18 @@ if "Panel Principal" in opcion:
     st.divider()
     st.subheader("⚡ Acciones Rápidas")
     col_btn1, col_btn2 = st.columns(2)
-    
+
     with col_btn1:
         st.info("⚖️ Calcula y optimiza tu revoltura (Manual o IA).")
-        st.button("Ir al Súper-Laboratorio", use_container_width=True)
-            
+        if st.button("Ir al Súper-Laboratorio", use_container_width=True):
+            st.session_state["modulo_actual"] = "Super Laboratorio"
+            st.rerun()
+
     with col_btn2:
         st.success("📦 Revisa y actualiza tus existencias.")
-        st.button("Ir a Inventario de Insumos", use_container_width=True)
+        if st.button("Ir a Inventario de Insumos", use_container_width=True):
+            st.session_state["modulo_actual"] = "Inventario de Insumos"
+            st.rerun()  
 
 #MÓDULO 1: INVENTARIO DE INSUMOS
 elif "Inventario" in opcion:
@@ -252,7 +261,6 @@ elif "Inventario" in opcion:
                     detalle = f"Ingreso de {kilos_mov}kg de {insumo_edit.upper()}. Nuevo precio: ${precio_final}"
                     
                 elif "Ajuste" in tipo_movimiento:
-                    # Sumamos lo que ponga el usuario (si quiere restar, que le ponga un signo menos '-50')
                     nuevo_stock = stock_actual + kilos_mov 
                     precio_final = precio_actual
                     tipo_accion = "Ajuste de Bodega"
@@ -327,7 +335,7 @@ elif "Inventario" in opcion:
             except Exception as e:
                 st.error(f"❌ Los de traje cortaron la conexión: {e}")
 
-# SÚPER-LABORATORIO (CENTRO DE MANDO ABSOLUTO)
+# SÚPER-LABORATORIO
 elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
     st.header("🧪 Súper-Laboratorio y Centro de Mando")
     st.markdown("Diseña la genética, audita y optimiza las raciones alimenticias del rancho en una sola pantalla.")
@@ -402,14 +410,27 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
             
             enviado = st.form_submit_button("🔥 ANALIZAR Y GUARDAR PERFIL GENÉTICO")
 
+        st.markdown("### 💊 Seleccione Protocolo Sanitario (QFB)")
+        col_med1, col_med2 = st.columns(2)
+        with col_med1:
+            nombres_desp = [d["nombre"] for d in botiquin["desparasitantes"].values()]
+            desp_sel = st.selectbox("Desparasitante", nombres_desp)
+        with col_med2:
+            nombres_vac = [d["nombre"] for d in botiquin["vacunas"].values()]
+            vac_sel = st.selectbox("Vacuna Base", nombres_vac)
+
+        enviado = st.form_submit_button("🔥 ANALIZAR Y GUARDAR PERFIL GENÉTICO")
+
         if enviado:
-            dosis_desparasitante = peso / 50
+            datos_desp = next(d for d in botiquin["desparasitantes"].values() if d["nombre"] == desp_sel)
+            datos_vac = next(d for d in botiquin["vacunas"].values() if d["nombre"] == vac_sel)
+
+            dosis_exacta_ml = peso * datos_desp["dosis_ml_por_kg"]
+            costo_desp = dosis_exacta_ml * datos_desp["costo_por_ml"]
+            costo_vac = datos_vac["costo_por_dosis"]
             
-            costo_desparasitante = dosis_desparasitante * 2.5
-            
-            costo_vacunas_base = 45.0 
-            
-            costo_salud_total = costo_desparasitante + costo_vacunas_base
+            costo_salud_total = costo_desp + costo_vac
+            retiro_dias = max(datos_desp["tiempo_retiro_dias"], datos_vac["tiempo_retiro_dias"])
 
             st.divider()
             
@@ -417,57 +438,67 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
             
             raza = raza_sel.lower()
             
-            razas_cebuinas = ["brahman", "nelore"] 
-            
-            razas_sinteticas = ["simbrah", "brangus"] 
-            
-            razas_europeas = ["angus", "hereford"] 
-            
-            razas_lecheras = ["holstein"] 
+            codex_genetico = {
+                # BOS INDICUS (Cebú - Trópico)
+                "brahman": {"sangre": "Indicus", "clima": "Trópico/Calor Extremo", "riesgo_termico": "Nulo", "proposito": "Carne"},
+                "nelore": {"sangre": "Indicus", "clima": "Trópico/Calor Extremo", "riesgo_termico": "Nulo", "proposito": "Carne"},
+                "sardo negro": {"sangre": "Indicus", "clima": "Trópico/Humedad", "riesgo_termico": "Nulo", "proposito": "Doble Propósito"},
+                "gyr": {"sangre": "Indicus", "clima": "Trópico/Calor", "riesgo_termico": "Nulo", "proposito": "Leche Tropical"},
+                "indubrasil": {"sangre": "Indicus", "clima": "Trópico", "riesgo_termico": "Nulo", "proposito": "Carne"},
+                "guzerat": {"sangre": "Indicus", "clima": "Trópico/Árido", "riesgo_termico": "Nulo", "proposito": "Doble Propósito"},
+                
+                # BOS TAURUS (Europeos - Templado) 
+                "angus": {"sangre": "Taurus", "clima": "Templado/Frío", "riesgo_termico": "Crítico (>30°C)", "proposito": "Carne Premium"},
+                "charolais": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Alto", "proposito": "Carne (Volumen)"},
+                "simmental": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Alto", "proposito": "Doble Propósito"},
+                "hereford": {"sangre": "Taurus", "clima": "Templado/Frío", "riesgo_termico": "Crítico (>30°C)", "proposito": "Carne Rústica"},
+                "suizo europeo": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Moderado", "proposito": "Doble Propósito"},
+                "holstein": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Crítico (>28°C)", "proposito": "Leche Especializada"},
+                "limousin": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Alto", "proposito": "Carne (Canal)"},
+                "jersey": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Moderado", "proposito": "Leche (Grasa)"},
+                
+                # CRUZAS Y SINTÉTICAS
+                "brangus (brahman x angus)": {"sangre": "Sintética", "clima": "Subtrópico", "riesgo_termico": "Bajo", "proposito": "Carne"},
+                "braford (brahman x hereford)": {"sangre": "Sintética", "clima": "Subtrópico", "riesgo_termico": "Bajo", "proposito": "Carne"},
+                "charbray (brahman x charolais)": {"sangre": "Sintética", "clima": "Trópico Seco", "riesgo_termico": "Bajo", "proposito": "Carne"},
+                "simbrah (brahman x simmental)": {"sangre": "Sintética", "clima": "Subtrópico", "riesgo_termico": "Bajo", "proposito": "Doble Propósito"},
+                "simangus (simmental x angus)": {"sangre": "Taurus cruzado", "clima": "Templado", "riesgo_termico": "Moderado", "proposito": "Carne"},
+                "black baldy (angus x hereford)": {"sangre": "Taurus cruzado", "clima": "Templado/Frío", "riesgo_termico": "Alto", "proposito": "Carne"},
+                "nelangus (nelore x angus)": {"sangre": "Sintética", "clima": "Trópico", "riesgo_termico": "Bajo", "proposito": "Carne"},
+                "suizo-cebu (suizo x brahman)": {"sangre": "Sintética", "clima": "Trópico Húmedo", "riesgo_termico": "Bajo", "proposito": "Doble Propósito"},
+                "girolando (holstein x gyr)": {"sangre": "Sintética", "clima": "Trópico/Humedad", "riesgo_termico": "Bajo", "proposito": "Leche Tropical"},
+                "beefmaster": {"sangre": "Sintética", "clima": "Adaptable", "riesgo_termico": "Bajo", "proposito": "Carne"},
+                "brahmousin (brahman x limousin)": {"sangre": "Sintética", "clima": "Subtrópico", "riesgo_termico": "Bajo", "proposito": "Carne"}
+            }
 
-            if clima >= 35:
-                if raza in razas_europeas or raza in razas_lecheras:
-                    st.error(f"❌ **INCOMPATIBILIDAD GRAVE:** Un {raza.title()} a {clima}°C sufrirá.")
-                
-                elif raza in razas_cebuinas:
-                    st.success(f"✅ **ADAPTABILIDAD PERFECTA:** El {raza.title()} es un tanque.")
-                
-                elif raza in razas_sinteticas:
-                    st.success(f"⭐ **RANGO PREMIUM:** El {raza.title()} te da el balance perfecto.")
-            
-            elif 22 <= clima < 35:
-                if raza in razas_europeas:
-                    st.warning(f"⚠️ **RIESGO MODERADO:** A {clima}°C, un {raza.title()} está en su límite.")
-                
-                elif raza in razas_lecheras:
-                    st.warning(f"⚠️ **CUIDADO:** El {raza.title()} bajará su producción de leche.")
-                
-                else:
-                    st.success(f"✅ **CLIMA CONFORTABLE:** Trabajará perfectamente a {clima}°C sin estrés.")
-            
-            else: 
-                if raza in razas_cebuinas:
-                    st.warning(f"⚠️ **ALERTA DE FRÍO:** A {clima}°C, las razas cebuinas sufren.")
-                
-                elif raza in razas_europeas:
-                    st.success(f"⭐ **RANGO PREMIUM:** Paraíso para el {raza.title()}.")
-                
-                else:
-                    st.success(f"✅ **ADAPTABILIDAD BUENA:** Se aclimatará bien a esta temperatura.")
+            datos_raza = codex_genetico.get(raza_sel.lower(), {"sangre": "Desconocida", "clima": "Variable", "riesgo_termico": "Desconocido", "proposito": "General"})
 
-            st.divider()
-            
-            st.subheader("💉 Protocolo Sanitario de Ingreso (Sugerido)")
-            
-            med1, med2, med3 = st.columns(3)
-            
-            med1.metric("Desparasitante", f"{dosis_desparasitante:.1f} ml")
-            
-            med2.metric("Vacunas Base", "Rabia + Clostridios + ADE")
-            
-            med3.metric("Costo Médico Inicial", f"${costo_salud_total:.2f} MXN")
-            
-            st.caption("💡 El costo de salud ya se guardó para tu proyección.")
+            st.info(f"🧬 **Perfil Genético:** {datos_raza['sangre']} | 🎯 **Propósito:** {datos_raza['proposito']}")
+
+            if clima >= 35 and datos_raza["riesgo_termico"] in ["Crítico (>30°C)", "Crítico (>28°C)"]:
+                st.error(f"❌ **INCOMPATIBILIDAD GRAVE:** Un animal {datos_raza['sangre']} a {clima}°C sufrirá estrés térmico severo y caída de producción ({datos_raza['proposito']}).")
+            elif clima >= 30 and datos_raza["riesgo_termico"] == "Alto":
+                st.warning(f"⚠️ **RIESGO MODERADO:** La temperatura de {clima}°C está en el límite para esta genética. Vigilar sombra e hidratación.")
+            elif datos_raza["riesgo_termico"] == "Nulo":
+                st.success(f"✅ **ADAPTABILIDAD PERFECTA:** Genética resistente para {datos_raza['clima']}. Soporta bien los {clima}°C.")
+            else:
+                st.success(f"⚖️ **CLIMA CONFORTABLE:** Temperatura de {clima}°C dentro del rango de confort para su perfil.")
+
+            try:
+                st.divider()
+                st.subheader("💊 Receta y Tiempos de Retiro")
+                
+                col_r1, col_r2, col_r3 = st.columns(3)
+                col_r1.metric("Desparasitante", f"{dosis_exacta_ml:.1f} ml", f"${costo_desp:.2f} MXN", delta_color="off")
+                col_r2.metric("Vacuna Base", f"{datos_vac['dosis_ml_fija']:.1f} ml", f"${costo_vac:.2f} MXN", delta_color="off")
+                col_r3.metric("Inversión Sanitaria", f"${costo_salud_total:.2f} MXN")
+
+                if retiro_dias > 0:
+                    st.error(f"🛑 **BLOQUEO COMERCIAL:** Los animales NO pueden ir a rastro en los próximos **{retiro_dias} días** debido a residuos en tejidos.")
+                else:
+                    st.success("✅ **LIBRE DE RESIDUOS:** Comercialización inmediata autorizada.")
+            except NameError:
+                st.info("👆 Selecciona los medicamentos arriba y presiona 'Analizar y Guardar' para calcular la receta y los tiempos de retiro.")
 
             if nombre_nuevo_lote:
                 try:
@@ -475,7 +506,7 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
                         "nombre_lote": nombre_nuevo_lote,
                         "raza": raza_sel,
                         "genero": genero,
-                        "proposito": proposito,
+                        "proposito": datos_raza["proposito"],
                         "edad": edad,
                         "peso_promedio": peso,
                         "clima_local": clima,
@@ -490,7 +521,7 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
             else:
                 st.error("⚠️ Debes ponerle un nombre al lote arriba para poder guardarlo.")
 
-    # MODULO 2. SISTEMA DE FORMULACIÓN (REQUIERE LOTE ACTIVO)
+    # MODULO 2. SISTEMA DE FORMULACIÓN
     if st.session_state.get('perfil') is not None:
         perf = st.session_state['perfil']
         peso = float(perf['peso'])
@@ -517,7 +548,7 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
 
         tab_manual, tab_ia = st.tabs(["🛠️ Formulación Manual", "🤖 Piloto Automático (Motor IA)"])
 
-        # PESTAÑA: MODO MANUAL (Limpia y purificada)
+        
         with tab_manual:
             st.markdown("### ⚖️ Auditoría de Mezcla Manual")
             
@@ -758,7 +789,7 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
 elif "Proyección" in opcion:
     st.header("📈 Centro de Control Financiero")
     if 'perfil' not in st.session_state or 'mezcla' not in st.session_state:
-        st.error("⚠️ Datos incompletos. Configure Perfil (Módulo 2) y Mezcla (Módulo 3).")
+        st.error("⚠️ Datos incompletos. Por favor, configure la genética y la dieta de los animales directamente en el **Súper-Laboratorio** para calcular la rentabilidad.")
     else:
         perf = st.session_state['perfil']
         mezc = st.session_state['mezcla']
@@ -1010,9 +1041,7 @@ elif "Mortandad" in opcion:
     if st.button("🚨 Registrar Baja Oficial", use_container_width=True):
         perdida_medica = 0
         
-        # Si dijeron que SÍ estaban vacunados, cobra la vacuna
         if "Sí" in vacunados:
-            # Traemos el costo de salud del perfil (si no hay, asumimos $50 por cabeza)
             if 'perfil' in st.session_state and "costo_salud" in st.session_state['perfil']:
                 costo_unitario = st.session_state['perfil']['costo_salud']
             else:
@@ -1027,7 +1056,6 @@ elif "Mortandad" in opcion:
             st.session_state['fuga_capital'] = 0.0
         st.session_state['fuga_capital'] += perdida_medica
 
-        # Alertas de éxito
         st.error(f"⚠️ Se dio de baja a {bajas} animal(es). Ya no se contarán para la compra de alimento.")
         
         if perdida_medica > 0:
@@ -1035,7 +1063,7 @@ elif "Mortandad" in opcion:
         else:
             st.success("✅ Baja registrada. Afortunadamente no se había invertido dinero médico en estos animales.")
             
-# MÓDULO 8: CONTROL DE PESO (BÁSCULA)
+# CONTROL DE PESO (BÁSCULA)
 elif "Peso" in opcion:
     st.header("⚖️ Báscula y Rendimiento")
     st.markdown("Registra el peso real para auditar si la dieta está dando los resultados proyectados.")

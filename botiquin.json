@@ -1,0 +1,45 @@
+{
+    "desparasitantes": {
+        "ivermectina_3_15": {
+            "nombre": "Ivermectina L.A. 3.15%",
+            "mecanismo": "Endectocida",
+            "dosis_ml_por_kg": 0.01,
+            "tiempo_retiro_dias": 122,
+            "costo_por_ml": 2.80
+        },
+        "albendazol_10": {
+            "nombre": "Albendazol 10%",
+            "mecanismo": "Gastrointestinal y Pulmonar",
+            "dosis_ml_por_kg": 0.05,
+            "tiempo_retiro_dias": 27,
+            "costo_por_ml": 0.95
+        },
+        "levamisol_12": {
+            "nombre": "Levamisol 12%",
+            "mecanismo": "Inmunoestimulante/Nematodos",
+            "dosis_ml_por_kg": 0.04,
+            "tiempo_retiro_dias": 7,
+            "costo_por_ml": 1.20
+        }
+    },
+    "vacunas": {
+        "clostridiada_11v": {
+            "nombre": "Bacterina 11 Vías (Clostridium)",
+            "dosis_ml_fija": 5.0,
+            "tiempo_retiro_dias": 21,
+            "costo_por_dosis": 25.00
+        },
+        "derriengue": {
+            "nombre": "Rabia Paralítica",
+            "dosis_ml_fija": 2.0,
+            "tiempo_retiro_dias": 0,
+            "costo_por_dosis": 18.50
+        },
+        "respiratoria_brd": {
+            "nombre": "Complejo Respiratorio Bovino (BRD)",
+            "dosis_ml_fija": 2.0,
+            "tiempo_retiro_dias": 21,
+            "costo_por_dosis": 35.00
+        }
+    }
+}
