@@ -118,7 +118,7 @@ else:
             "⚖️ Control de Peso (Báscula)"
         ]
 
-opcion = st.sidebar.radio("Seleccione un Módulo:", ["Panel Principal", "Inventario de Insumos", "Super Laboratorio", "Proyección Financiera", "Caja Negra (Bitácora)"], key="modulo_actual")
+opcion = st.sidebar.radio("Seleccione un Módulo:", modulos_disponibles, key="modulo_actual")
 
 # 🏠 PANEL PRINCIPAL (CENTRO DE MANDO)
 if "Panel Principal" in opcion:
@@ -157,10 +157,10 @@ if "Panel Principal" in opcion:
     st.subheader("⚡ Acciones Rápidas")
 
     def saltar_a_lab():
-        st.session_state["modulo_actual"] = "Super Laboratorio"
+        st.session_state["modulo_actual"] = "🧪 Super Laboratorio"
 
     def saltar_a_inv():
-        st.session_state["modulo_actual"] = "Inventario de Insumos"
+        st.session_state["modulo_actual"] = "📦 Inventario de Insumos"
 
     col_btn1, col_btn2 = st.columns(2)
 
@@ -344,7 +344,7 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
     st.markdown("Diseña la genética, audita y optimiza las raciones alimenticias del rancho en una sola pantalla.")
     st.divider()
 
-    # 1. GESTOR DE LOTES INTEGRADO 
+    # GESTOR DE LOTES INTEGRADO 
     st.subheader("🐄 1. Selección o Creación de Lote")
     
     tab_cargar, tab_crear = st.tabs(["📋 Cargar Lote Activo", "🧬 Crear Nuevo Lote (IA Genética)"])
@@ -394,37 +394,51 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
         
         nombre_nuevo_lote = st.text_input("Dale un nombre a este grupo:")
         
+        # LISTA RAZAS
+        razas_disponibles = [
+            "brahman", "nelore", "sardo negro", "gyr", "indubrasil", "guzerat",
+            "angus", "charolais", "simmental", "hereford", "suizo europeo", "holstein", "limousin", "jersey",
+            "brangus (brahman x angus)", "braford (brahman x hereford)", "charbray (brahman x charolais)",
+            "simbrah (brahman x simmental)", "simangus (simmental x angus)", "black baldy (angus x hereford)",
+            "nelangus (nelore x angus)", "suizo-cebu (suizo x brahman)", "girolando (holstein x gyr)",
+            "beefmaster", "brahmousin (brahman x limousin)"
+        ]
+
         with st.form("perfil_animal"):
             col1, col2 = st.columns(2)
             
             with col1:
-                raza_sel = st.selectbox("1. Raza:", ["brahman", "nelore", "angus", "hereford", "brangus", "simbrah", "holstein"])
-                
+                raza_sel = st.selectbox("1. Raza:", razas_disponibles)
                 genero = st.radio("2. Género:", ["Macho", "Hembra"], horizontal=True)
-                
                 proposito = st.selectbox("3. Propósito:", ["Carne", "Leche", "Semental", "Doble Propósito"])
             
             with col2:
                 edad = st.number_input("4. Edad (meses):", min_value=1, max_value=200, value=5)
-                
                 peso = st.number_input("5. Peso (kg):", min_value=30, max_value=1500, value=180)
-                
                 clima = st.slider("6. Clima (°C):", 0, 50, 32)
             
-            st.markdown(" 💊 Seleccione Protocolo Sanitario")
-        col_med1, col_med2 = st.columns(2)
-        with col_med1:
-            nombres_desp = [d["nombre"] for d in botiquin["desparasitantes"].values()]
-            desp_sel = st.selectbox("Desparasitante", nombres_desp)
-        with col_med2:
-            nombres_vac = [d["nombre"] for d in botiquin["vacunas"].values()]
-            vac_sel = st.selectbox("Vacuna Base", nombres_vac)
+            st.markdown("### 💊 Protocolo Sanitario (Opcional)")
+            col_med1, col_med2 = st.columns(2)
+            with col_med1:
+                nombres_desp = ["❌ Ninguno (No aplicar)"] + [d["nombre"] for d in botiquin["desparasitantes"].values()]
+                desp_sel = st.selectbox("Desparasitante", nombres_desp)
+            with col_med2:
+                nombres_vac = ["❌ Ninguna (No aplicar)"] + [d["nombre"] for d in botiquin["vacunas"].values()]
+                vac_sel = st.selectbox("Vacuna Base", nombres_vac)
 
-    
-        enviado = st.form_submit_button("🔥 ANALIZAR Y GUARDAR PERFIL GENÉTICO")
+            enviado = st.form_submit_button("🔥 ANALIZAR Y GUARDAR PERFIL GENÉTICO")
+        
         if enviado:
-            datos_desp = next(d for d in botiquin["desparasitantes"].values() if d["nombre"] == desp_sel)
-            datos_vac = next(d for d in botiquin["vacunas"].values() if d["nombre"] == vac_sel)
+            # LÓGICA DE SALUD OPCIONAL
+            if desp_sel == "❌ Ninguno (No aplicar)":
+                datos_desp = {"dosis_ml_por_kg": 0, "costo_por_ml": 0, "tiempo_retiro_dias": 0}
+            else:
+                datos_desp = next(d for d in botiquin["desparasitantes"].values() if d["nombre"] == desp_sel)
+                
+            if vac_sel == "❌ Ninguna (No aplicar)":
+                datos_vac = {"dosis_ml_fija": 0, "costo_por_dosis": 0, "tiempo_retiro_dias": 0}
+            else:
+                datos_vac = next(d for d in botiquin["vacunas"].values() if d["nombre"] == vac_sel)
 
             dosis_exacta_ml = peso * datos_desp["dosis_ml_por_kg"]
             costo_desp = dosis_exacta_ml * datos_desp["costo_por_ml"]
