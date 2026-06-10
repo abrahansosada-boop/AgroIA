@@ -172,7 +172,7 @@ if "Panel Principal" in opcion:
         st.success("📦 Revisa y actualiza tus existencias.")
         st.button("Ir a Inventario de Insumos", use_container_width=True, on_click=saltar_a_inv)
 
-#MÓDULO 1: INVENTARIO DE INSUMOS
+# INVENTARIO DE INSUMOS
 elif "Inventario" in opcion:
     st.header("📦 Control de Bodega y Precios")
     
@@ -223,7 +223,7 @@ elif "Inventario" in opcion:
         df_inventario = df_inventario.drop(columns=["Costo Actual ($/kg)"])        
     st.dataframe(df_inventario, use_container_width=True, hide_index=True)
     
-    #ACTUALIZAR INVENTARIO, PRECIOS O MERMAS
+    # ACTUALIZAR INVENTARIO, PRECIOS O MERMAS
     st.divider()
     st.subheader("🛠️ Auditoría y Movimientos de Bodega")
     
@@ -239,12 +239,10 @@ elif "Inventario" in opcion:
     with col_ed2:
         kilos_mov = st.number_input("Kilos del movimiento", min_value=0.0, value=0.0, step=50.0)
         
-        # Opciones dinámicas dependiendo del movimiento
         if "Ingreso" in tipo_movimiento:
             nuevo_precio = st.number_input("Nuevo precio de compra ($/kg)", value=float(base_datos[insumo_edit]["costo_kg"]), step=0.1)
         elif "Merma" in tipo_movimiento:
             causa_merma = st.selectbox("Causa de la pérdida:", ["Humedad/Lluvia", "Plagas (Ratones/Gorgojo)", "Accidente/Rotura", "Robo/Extravío"])
-            # Calculamos la pérdida en vivo 
             perdida_calculada = kilos_mov * base_datos[insumo_edit]['costo_kg']
             st.warning(f"💸 Esto generará una pérdida auditada de **${perdida_calculada:,.2f} MXN**")
 
@@ -256,7 +254,6 @@ elif "Inventario" in opcion:
                 stock_actual = base_datos[insumo_edit]["stock_kg"]
                 precio_actual = base_datos[insumo_edit]["costo_kg"]
                 
-                # Lógica matemática según el movimiento
                 if "Ingreso" in tipo_movimiento:
                     nuevo_stock = stock_actual + kilos_mov
                     precio_final = nuevo_precio
@@ -276,17 +273,14 @@ elif "Inventario" in opcion:
                     tipo_accion = "Merma Financiera"
                     detalle = f"MERMA de {kilos_mov}kg de {insumo_edit.upper()} por {causa_merma}. Fuga: ${perdida_dinero:,.2f}"
 
-                # 1. Enviar a Supabase primero 
                 respuesta = supabase.table("inventario").update({
                     "stock_kg": float(nuevo_stock),
                     "costo_kg": float(precio_final)
                 }).eq("insumo", insumo_edit).execute()
 
-                # 2. Actualizar memoria local para que se vea reflejado
                 base_datos[insumo_edit]["stock_kg"] = float(nuevo_stock)
                 base_datos[insumo_edit]["costo_kg"] = float(precio_final)
                 
-                # 3. Registrar en Caja Negra
                 registrar_bitacora(tipo_accion, detalle)
                 st.success(f"✅ ¡Movimiento de {insumo_edit.upper()} registrado exitosamente!")
                 
@@ -304,15 +298,12 @@ elif "Inventario" in opcion:
     if st.button("📡 Sincronizar Precio del Maíz con Chicago"):
         with st.spinner("Hackeando la matriz financiera..."):
             try:
-                # 1. Traer tipo de cambio Dólar a Peso (USD/MXN)
                 usd_mxn = yf.Ticker("MXN=X")
                 precio_dolar = usd_mxn.fast_info['lastPrice']
                 
-                # 2. Traer precio del Maíz (Futuros de Chicago: ZC=F) 
                 maiz_ticker = yf.Ticker("ZC=F")
                 precio_centavos_bushel = maiz_ticker.fast_info['lastPrice']
                 
-                # 3 Matemáticas de conversión (1 Bushel de Maíz = 25.401 kg)
                 precio_usd_bushel = precio_centavos_bushel / 100
                 precio_usd_kg = precio_usd_bushel / 25.401
                 precio_mxn_kg = precio_usd_kg * precio_dolar
@@ -536,7 +527,7 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
             else:
                 st.error("⚠️ Debes ponerle un nombre al lote arriba para poder guardarlo.")
 
-    # MODULO 2. SISTEMA DE FORMULACIÓN
+    # SISTEMA DE FORMULACIÓN
     if st.session_state.get('perfil') is not None:
         perf = st.session_state['perfil']
         peso = float(perf['peso'])
@@ -667,7 +658,6 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
                     kilos_en_tolva = st.number_input("Kilos actuales en la revolvedora", value=1000, step=100)
                 with col_p2:
                     prot_objetivo = st.number_input("Proteína objetivo (%)", value=14.0, step=0.5)
-                    # El selector ahora es seguro
                     ing_refuerzo = st.selectbox("Selecciona ingrediente de refuerzo:", opciones_ingredientes)
                 
                 if ing_refuerzo:
@@ -800,7 +790,7 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
                     except Exception as e:
                         st.error(f"⚠️ Error al registrar en la bóveda: {e}")
 
-# MÓDULO 4: PROYECCIÓN FINANCIERA
+# PROYECCIÓN FINANCIERA
 elif "Proyección" in opcion:
     st.header("📈 Centro de Control Financiero")
     if 'perfil' not in st.session_state or 'mezcla' not in st.session_state:
@@ -898,7 +888,7 @@ elif "Proyección" in opcion:
         if margen_por_kilo > 15:
             st.balloons()
 
-#BOTÓN DE CAJA NEGRA
+# BOTÓN DE CAJA NEGRA
         st.divider()
         st.subheader("💾 Respaldar Lote")
         if st.button("Guardar en la Caja Negra"):
@@ -919,7 +909,7 @@ elif "Proyección" in opcion:
             except Exception as e:
                 st.error(f"Error al guardar la proyección: {e}")
     
-#MÓDULO 5: CAJA NEGRA
+# CAJA NEGRA
 elif "Caja Negra" in opcion:
     st.header("📓 Caja Negra: Historial de Movimientos")
     st.markdown("Auditoría en tiempo real de las operaciones del rancho.")
@@ -990,13 +980,11 @@ elif "Caja Negra" in opcion:
             col_g1, col_g2 = st.columns(2)
             
             with col_g1:
-                # Gráfica de Pastel: Tipos de Acciones
                 fig_pie = px.pie(df_bitacora, names='accion', title='📊 Distribución de Actividades',
                                hole=0.4, color_discrete_sequence=px.colors.sequential.RdBu)
                 st.plotly_chart(fig_pie, use_container_width=True)
                 
             with col_g1:
-                # Gráfica de Pastel:
                 paleta_agro = ['#2ecc71', '#f39c12', '#7f8c8d', '#34495e', '#1abc9c']
                 fig_pie = px.pie(df_bitacora, names='accion', title='📊 Distribución de Actividades',
                                hole=0.4, color_discrete_sequence=paleta_agro)
@@ -1010,7 +998,6 @@ elif "Caja Negra" in opcion:
             df_final.columns = ['Fecha y Hora', 'Tipo de Acción', 'Detalle del Movimiento']
             
             st.dataframe(df_final, use_container_width=True, hide_index=True)
-            # BOTÓN DE EXCEL
             st.divider()
             csv = df_final.to_csv(index=False).encode('utf-8')
             st.download_button(
@@ -1026,7 +1013,7 @@ elif "Caja Negra" in opcion:
     except Exception as e:
         st.error(f"Error al leer la Caja Negra: {e}")
             
-# MÓDULO 7: GESTIÓN DE MORTANDAD Y BAJAS
+# GESTIÓN DE MORTANDAD Y BAJAS
 elif "Mortandad" in opcion:
     st.header("🪦 Gestor de Mortandad y Pérdidas")
     st.markdown("Registra las bajas del rebaño para dar de baja las 'bocas que alimentar' y calcular la fuga de capital.")
@@ -1139,56 +1126,224 @@ elif "Peso" in opcion:
 
             detalle = f"Pesada {id_animal}: {peso_actual}kg. GDP: {gdp_real:.2f}kg/día (Meta: {meta_ia})."
             registrar_bitacora("Control de Peso", detalle)
-            # CONEXIÓN FINAL: Actualizar el peso en el perfil global
             if 'perfil' in st.session_state:
                 st.session_state['perfil']['peso'] = peso_actual
                 st.success(f"🔄 ¡Sistema Nervioso Activo! El peso base para tus finanzas se actualizó automáticamente a {peso_actual} kg.")
-# MÓDULO 9: LA BÓVEDA PREMIUM (IA)
-elif "Bóveda" in opcion:
-    st.header("💎 Bóveda Premium de AgroIA")
-    st.markdown("Manuales de emergencia y tecnologías de rescate para el rancho.")
+
+# 👑 MÓDULO: BÓVEDA PREMIUM DE GANADERÍA REGENERATIVA & RESILIENCIA GLOBAL
+st.title("👑 Bóveda Premium: Hub Global de Tecnologías Resilientes")
+st.markdown("""
+    Este módulo recopila sistemas de manejo y optimización de recursos forrajeros validados en ecosistemas de alta adversidad climatológica. 
+    Diseñado para reducir la dependencia de insumos externos y mitigar los efectos de sequías prolongadas mediante protocolos operativos estandarizados.
+""")
+
+# Selector de los 3 Pilares de Impacto Global
+pilar_seleccionado = st.selectbox(
+    "🌍 Seleccione un Pilar de Resiliencia:",
+    [
+        "🌵 Pilar 1: Resiliencia Extrema y Escasez (Supervivencia Hídrica y Alimentaria)",
+        "🦠 Pilar 2: Suelo, Microbiología y Reducción de Insumos (Regeneración)",
+        "📡 Pilar 3: Escalabilidad y Manejo Dinámico (Procesos y Tecnología)"
+    ]
+)
+
+st.divider()
+
+# 🌵 PILAR 1: RESILIENCIA EXTREMA Y ESCASEZ
+if "Pilar 1" in pilar_seleccionado:
+    st.subheader("🛡️ Tácticas de Supervivencia ante Sequías e Inflación de Insumos")
     
-    tab1, tab2, tab3 = st.tabs(["🌽 Silo de Tamo (Rescate)", "🌵 Pasta de Nopal", "📡 Cercos Virtuales"])
+    tech_p1 = st.radio(
+        "Seleccione la Tecnología a Desplegar:",
+        ["🌵 Bio-Fábrica de Nopal Forrajero + Tamo", "🌱 Cultivo Rústico de Azolla", "🌾 Silo de Tamo y Fermentación Sólida"],
+        horizontal=True
+    )
     
-    with tab1:
-        st.subheader("Silo tipo 'Pastel' (Convertir rastrojo en alimento suave)")
-        st.markdown("""
-        **¿Para qué sirve?** Para hacer que el tamo de maíz seco, que las vacas casi no pueden digerir, se vuelva blando y nutritivo usando el propio calor de la fermentación.
+    st.divider()
+    
+    # MODULO NOPAL FORRAJERO
+    if "Nopal Forrajero" in tech_p1:
+        st.markdown("### 🌵 Bio-Fábrica de Nopal Forrajero + Tamo")
+        st.caption("📍 Origen de validación: Zonas semiáridas y Nordeste Brasileño")
         
-        **Instrucciones paso a paso:**
-        1. **Prepara la cama:** Pon un hule o plástico grueso y sin hoyos en el suelo plano.
-        2. **Acomoda el material:** Echa una capa gruesa de tamo de maíz seco sobre el plástico.
-        3. **La mezcla activadora (¡CUIDADO AQUÍ!):** Primero, disuelve bien la urea en **agua tibia o caliente** (si la echas en agua fría quedan granos enteros y puedes matar a la vaca por intoxicación). Ya bien disuelta, revuélvela con más agua y melaza. Rocía el tamo con esta mezcla. *El tamo debe quedar húmedo, no escurriendo.*
-        4. **Písalo con ganas:** Compacta el tamo caminando encima o pasando un tractor ligero. El objetivo es sacarle TODO el aire. Si queda aire, se pudre.
-        5. **Séllalo por completo:** Cúbrelo con otro plástico por arriba. Ponle llantas viejas o tierra en las orillas para que quede sellado al vacío. 
-        6. **Déjalo cocinar:** Espérate entre 21 y 30 días sin destaparlo. Se va a calentar solo; ese calor "cocina" la fibra dura.
-        """)
-        if st.button("Aplicar Receta al Laboratorio (Próximamente)", key="btn_silo"):
-            st.toast("Próximamente: La IA te calculará los litros exactos de agua y melaza.")
+        col_v1, col_v2, col_v3 = st.columns(3)
+        col_v1.metric("💰 Costo de Implementación", "BAJO", "Baja inversión de capital", delta_color="normal")
+        col_v2.metric("🇲🇽 Acceso en México", "EXCELENTE", "Disponibilidad de material vegetativo local", delta_color="normal")
+        col_v3.metric("🧠 Complejidad Operativa", "BAJA", "Requiere mano de obra estándar", delta_color="off")
+        
+        tab_info, tab_receta = st.tabs(["📋 Manual Operativo y Seguridad", "🧮 Calculadora de Racionamiento AgroIA"])
+        
+        with tab_info:
+            col_ind, col_contra = st.columns(2)
+            with col_ind:
+                st.success("""
+                    **🎯 INDICACIONES DE USO:**
+                    * Déficit hídrico severo o ausencia de agua de bebida circulante.
+                    * Escasez de forraje verde de alta energía en pastoreo.
+                    * Estrategia de mantenimiento estacional para ganado bovino de cría.
+                """)
+            with col_contra:
+                st.error("""
+                    **🛑 CONTRAINDICACIONES Y ALERTAS:**
+                    * **RESTRICCIÓN:** No suministrar pencas de nopal de forma exclusiva. El exceso de agua libre y mucílago genera tránsito intestinal acelerado (diarrea mecánica), provocando deshidratación y pérdida de peso.
+                    * **OBLIGATORIEDAD:** Integrar siempre una fuente de fibra larga seca (tamo, rastrojo o paja) para asegurar la rumia correcta.
+                """)
             
-    with tab2:
-        st.subheader("Pasta Forrajera de Nopal")
-        st.markdown("""
-        **¿Para qué sirve?** Es un salvavidas cuando no hay pasto ni lluvia. El nopal aporta muchísima agua y energía barata.
+            st.markdown("#### 🛠️ Procedimiento Operativo Estándar (SOP)")
+            st.info("""
+                1. **Cosecha:** Cortar pencas maduras (evitar brotes tiernos por exceso de acidez).
+                2. **Acondicionamiento:** Eliminar espinas mediante chamuscado rápido con quemador de gas.
+                3. **Procesamiento:** Picar en fragmentos de aproximadamente 3x3 cm para facilitar la prensión.
+                4. **Homogeneización:** Mezclar uniformemente con la fracción de fibra seca calculada en la pestaña contigua.
+            """)
+            
+        with tab_receta:
+            st.markdown("#### 🧮 Optimización de Dieta de Emergencia y Retorno de Inversión (ROI)")
+            st.write("Determine los requerimientos diarios y evalúe el impacto financiero de la contingencia:")
+            
+            col_c1, col_c2, col_c3 = st.columns(3)
+            with col_c1:
+                num_animales = st.number_input("Número de animales en el lote:", min_value=1, value=50, step=1)
+            with col_c2:
+                peso_promedio = st.number_input("Peso vivo promedio (kg):", min_value=50, value=400, step=10)
+            with col_c3:
+                dias_periodo = st.number_input("Días estimados de contingencia:", min_value=1, value=60, step=5)
+            
+            consumo_total_fresco_dia = peso_promedio * 0.10
+            nopal_por_animal_dia = consumo_total_fresco_dia * 0.75
+            tamo_por_animal_dia = consumo_total_fresco_dia * 0.25
+            
+            total_nopal_necesario = nopal_por_animal_dia * num_animales * dias_periodo
+            total_tamo_necesario = tamo_por_animal_dia * num_animales * dias_periodo
+            
+            st.subheader("📊 Requerimientos Totales de Suministro")
+            col_r1, col_r2 = st.columns(2)
+            
+            with col_r1:
+                st.info(f"🌵 **Nopal Forrajero requerido:**\n* **Por animal/día:** {nopal_por_animal_dia:.1f} kg\n* **Total Periodo:** {total_nopal_necesario / 1000:.2f} Toneladas")
+            with col_r2:
+                st.success(f"🌾 **Tamo / Rastrojo requerido:**\n* **Por animal/día:** {tamo_por_animal_dia:.1f} kg\n* **Total Periodo:** {total_tamo_necesario / 1000:.2f} Toneladas")
+            
+            st.divider()
+            
+            # CALCULADORA ROI FINANCIERO
+            st.markdown("#### 💵 Análisis de Impacto Económico vs. Alimentación Tradicional")
+            col_f1, col_f2 = st.columns(2)
+            
+            with col_f1:
+                costo_ton_tamo = st.number_input("Costo de Tamo/Rastrojo por Tonelada ($):", min_value=100, value=1500, step=100)
+                costo_corte_nopal = st.number_input("Costo de recolección Nopal por Tonelada ($):", min_value=0, value=300, step=50)
+            with col_f2:
+                costo_ton_paca = st.number_input("Costo de Paca Comercial por Tonelada ($):", min_value=1000, value=5000, step=100)
+            
+            costo_total_resiliencia = ((total_nopal_necesario / 1000) * costo_corte_nopal) + ((total_tamo_necesario / 1000) * costo_ton_tamo)
+            
+            consumo_paca_dia = peso_promedio * 0.03
+            total_paca_necesaria = consumo_paca_dia * num_animales * dias_periodo
+            costo_total_tradicional = (total_paca_necesaria / 1000) * costo_ton_paca
+            
+            ahorro_generado = costo_total_tradicional - costo_total_resiliencia
+            porcentaje_ahorro = (ahorro_generado / costo_total_tradicional) * 100 if costo_total_tradicional > 0 else 0
+            
+            st.markdown("##### 📈 Proyección de Ahorro Operativo")
+            col_res1, col_res2, col_res3 = st.columns(3)
+            col_res1.metric("Inversión Dieta Tradicional", f"${costo_total_tradicional:,.2f}", "Compra externa", delta_color="inverse")
+            col_res2.metric("Inversión Nopal + Tamo", f"${costo_total_resiliencia:,.2f}", "Aprovechamiento local", delta_color="off")
+            col_res3.metric("Capital Salvado (Ahorro)", f"${ahorro_generado:,.2f}", f"{porcentaje_ahorro:.1f}% reducción de costos")
+
+    # MODULO AZOLLA
+    elif "Azolla" in tech_p1:
+        st.markdown("### 🌱 Cultivo de Azolla (Helecho Acuático de Alta Proteína)")
+        st.caption("📍 Origen de validación: Sistemas intensivos asiáticos y unidades de doble propósito.")
         
-        **Instrucciones paso a paso:**
-        1. **Corte y limpieza:** Corta pencas maduras y chamusca las espinas (si no es variedad sin espina).
-        2. **Picado:** Pícalo en trozos pequeños con machete o una picadora de forraje.
-        3. **El truco para evitar diarrea:** El nopal tiene demasiada agua. **NUNCA** lo des solo. Revuélvelo siempre con un forraje muy seco (paja, rastrojo, tamo) para que la dieta amarre en la panza de la vaca.
-        4. **Agrega la proteína:** Si puedes, espolvorea un poco de pasta de soya o urea a la revoltura antes de echarlo al comedero.
-        """)
-        if st.button("Aplicar Receta al Laboratorio (Próximamente)", key="btn_nopal"):
-            st.toast("Próximamente: La IA te dirá cuánto rastrojo seco echarle al nopal.")
+        col_v1, col_v2, col_v3 = st.columns(3)
+        col_v1.metric("💰 Costo de Implementación", "MUY BAJO", "Infraestructura rústica (lonas)", delta_color="normal")
+        col_v2.metric("🇲🇽 Acceso en México", "ALTO", "Cepa disponible a nivel nacional", delta_color="normal")
+        col_v3.metric("🧠 Complejidad Operativa", "MEDIA", "Monitoreo de calidad de agua", delta_color="off")
         
-    with tab3:
-        st.subheader("Collares Inteligentes (Sin Cercos Físicos)")
-        st.markdown("""
-        **¿Qué es?** Eliminar el alambre de púas. Usas collares con GPS que controlan a la vaca con sonidos.
+        tab_info, tab_receta = st.tabs(["📋 Manual Operativo y Seguridad", "🧮 Calculadora de Área y ROI"])
         
-        **¿Cómo funciona en la práctica?**
-        1. Le pones el collar a los animales.
-        2. Abres tu celular y dibujas en el mapa dónde quieres que coman hoy.
-        3. Si la vaca intenta salir de esa zona, el collar hace un pitido fuerte.
-        4. Si la vaca ignora el sonido y sigue caminando, el collar le da una pequeña vibración o toque. El animal aprende rápido a no pasar del pitido.
-        5. **Ventaja:** Puedes mover al ganado a pastos nuevos todos los días desde tu oficina sin pagar sueldos por hacer cercos.
-        """)
+        with tab_info:
+            col_ind, col_contra = st.columns(2)
+            with col_ind:
+                st.success("""
+                    **🎯 INDICACIONES DE USO:**
+                    * Reducción de costos en suplementación proteica comercial (ej. Pasta de Soya, Alfalfa).
+                    * Ganadería de leche, doble propósito o etapas de desarrollo.
+                    * Ranchos con disponibilidad de agua dulce estancada o de bajo flujo.
+                """)
+            with col_contra:
+                st.error("""
+                    **🛑 CONTRAINDICACIONES Y ALERTAS:**
+                    * **LÍMITE TÉRMICO:** Exposición a temperaturas del agua superiores a 38°C provoca necrosis y muerte del cultivo. Requiere malla sombra en zonas de radiación extrema.
+                    * **CALIDAD DEL AGUA:** Alta salinidad o acumulación excesiva de amoníaco (por sobredosis de abono) colapsará la biomasa biológica.
+                """)
+                
+            st.markdown("#### 🛠️ Procedimiento Operativo Estándar (SOP)")
+            st.info("""
+                1. **Infraestructura:** Excavar cepas poco profundas (20 cm) de 2x2 metros y recubrir con geomembrana o lona plástica calibre 600.
+                2. **Nutrición:** Añadir una base de suelo franco (2 cm) y fertilizar con solución de roca fosfórica o estiércol bovino compostado (libre de patógenos).
+                3. **Inoculación:** Introducir la cepa madre de Azolla a razón de 300 gramos por metro cuadrado.
+                4. **Cosecha Continua:** Extraer del 25% al 30% de la biomasa superficial diariamente para evitar el hacinamiento y promover la oxigenación.
+            """)
+
+        with tab_receta:
+            st.markdown("#### 🧮 Dimensionamiento de Módulos Acuáticos")
+            st.write("Determine el área de piletas requerida para su lote y evalúe la viabilidad económica:")
+            
+            col_c1, col_c2, col_c3 = st.columns(3)
+            with col_c1:
+                num_vacas = st.number_input("Animales a suplementar:", min_value=1, value=20, step=1)
+            with col_c2:
+                consumo_diario_azolla = st.number_input("Consumo Azolla Fresca (kg/animal/día):", min_value=1.0, max_value=5.0, value=2.0, step=0.5)
+            with col_c3:
+                rendimiento_m2 = st.number_input("Rendimiento estimado (kg/m²/día):", min_value=0.5, max_value=1.5, value=1.0, step=0.1)
+            
+            produccion_diaria_requerida = num_vacas * consumo_diario_azolla
+            area_necesaria_m2 = produccion_diaria_requerida / rendimiento_m2
+            
+            st.subheader("📐 Requerimientos de Infraestructura")
+            col_r1, col_r2 = st.columns(2)
+            with col_r1:
+                st.info(f"💧 **Área Activa de Cultivo:** {area_necesaria_m2:.1f} m²\n\n*Equivalente a {int(area_necesaria_m2/4) + 1} piletas estándar de 2x2 metros.*")
+            with col_r2:
+                st.success(f"🌿 **Producción Diaria de Biomasa:** {produccion_diaria_requerida:.1f} kg frescos.")
+                
+            st.divider()
+            
+            # CALCULADORA ROI FINANCIERO AZOLLA
+            st.markdown("#### 💵 Impacto Financiero y Sustitución de Proteína")
+            col_f1, col_f2 = st.columns(2)
+            
+            with col_f1:
+                costo_kg_azolla = st.number_input("Costo operativo Azolla (kg fresco) [$]:", min_value=0.1, value=0.50, step=0.1, help="Considera agua, mano de obra y fertilizante.")
+            with col_f2:
+                costo_kg_comercial = st.number_input("Costo Suplemento Comercial Sustituido (kg) [$]:", min_value=1.0, value=6.0, step=0.5, help="Costo del concentrado proteico equivalente.")
+            
+            gasto_diario_azolla = produccion_diaria_requerida * costo_kg_azolla
+            gasto_diario_comercial = produccion_diaria_requerida * costo_kg_comercial
+            ahorro_diario_azolla = gasto_diario_comercial - gasto_diario_azolla
+            ahorro_anual_azolla = ahorro_diario_azolla * 365
+            
+            st.markdown("##### 📈 Proyección de Ahorro Anualizado")
+            col_res1, col_res2, col_res3 = st.columns(3)
+            col_res1.metric("Gasto Anual Comercial", f"${(gasto_diario_comercial * 365):,.2f}", delta_color="inverse")
+            col_res2.metric("Gasto Anual Azolla", f"${(gasto_diario_azolla * 365):,.2f}", delta_color="off")
+            col_res3.metric("Ahorro Neto Anualizado", f"${ahorro_anual_azolla:,.2f}", "Retención de flujo de caja")
+
+    elif "Silo de Tamo" in tech_p1:
+        st.markdown("### 🌾 Silo de Tamo y Fermentación Sólida")
+        st.caption("📍 Origen de validación: Optimización de esquilmos agrícolas de cereales")
+        st.info("Sección en desarrollo para la carga de datos del proceso de amonificación con urea.")
+
+# 🦠 PILAR 2: SUELO Y MICROBIOLOGÍA
+elif "Pilar 2" in pilar_seleccionado:
+    st.subheader("🦠 Regeneración Biológica del Suelo y Control Sanitario Natural")
+    tech_p2 = st.radio("Seleccione la Tecnología:", ["🌳 Sistemas Silvopastoriles Intensivos", "🐄 Efecto 'Boma' / Corrales Móviles"], horizontal=True)
+    st.info(f"Estructura lista para integración de protocolos operativos de {tech_p2}.")
+
+# 📡 PILAR 3: ESCALABILIDAD Y PROCESOS
+elif "Pilar 3" in pilar_seleccionado:
+    st.subheader("📡 Manejo Dinámico del Ganado con Alta Tecnología")
+    tech_p3 = st.radio("Seleccione la Tecnología:", ["🛰️ Cercos Virtuales y Collares GPS", "📊 Planificación de Pastoreo Holístico"], horizontal=True)
+    st.info(f"Estructura lista para la interconexión de mapas y telemetría de {tech_p3}.")
