@@ -1,0 +1,23 @@
+[
+    {
+        "Fecha": "2026-03-12 15:41",
+        "Raza": "HEREFORD",
+        "Costo Producci\u00f3n": 37.92,
+        "Precio Venta": 55.0,
+        "Margen Utilidad": 17.08
+    },
+    {
+        "Fecha": "2026-03-20 14:46",
+        "Raza": "BRAHMAN",
+        "Costo Producci\u00f3n": 19.95,
+        "Precio Venta": 55.0,
+        "Margen Utilidad": 35.05
+    },
+    {
+        "Fecha": "2026-03-20 16:02",
+        "Raza": "BRAHMAN",
+        "Costo Producci\u00f3n": 19.34,
+        "Precio Venta": 55.0,
+        "Margen Utilidad": 35.66
+    }
+]
