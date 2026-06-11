@@ -1,20 +1,30 @@
+import hmac
 import streamlit as st
 import json
 import pandas as pd
 import yfinance as yf
-import os
 from datetime import datetime
 import plotly.express as px
 import pulp  
 from supabase import create_client, Client
 
+from config import ConfigurationError, load_config
+
+
+try:
+    app_config = load_config(secrets=st.secrets)
+except ConfigurationError as error:
+    st.error(
+        "Configuración incompleta o inválida. Define estas claves: "
+        + ", ".join(error.invalid_keys)
+    )
+    st.stop()
+
 @st.cache_resource
-def init_connection():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
+def init_connection(url, key):
     return create_client(url, key)
 
-supabase = init_connection()
+supabase = init_connection(app_config.supabase_url, app_config.supabase_key)
 
 # (LOGIN)
 if "autenticado" not in st.session_state:
@@ -28,7 +38,7 @@ if not st.session_state["autenticado"]:
     with col2:
         password = st.text_input("Contraseña Maestra:", type="password")
         if st.button("🚪 Entrar al Sistema", use_container_width=True):
-            if password == "rancho2026":  
+            if hmac.compare_digest(password, app_config.app_password):
                 st.session_state["autenticado"] = True
                 st.rerun()
             elif password != "":
@@ -94,7 +104,7 @@ st.sidebar.divider()
 st.sidebar.subheader("🔐 Nivel de Acceso")
 pin_secreto = st.sidebar.text_input("PIN de Seguridad:", type="password")
 
-es_administrador = (pin_secreto == "2026")
+es_administrador = hmac.compare_digest(pin_secreto, app_config.admin_pin)
 
 if es_administrador:
         st.sidebar.success("Modo Administrador Activado 🤠")
@@ -1705,4 +1715,4 @@ elif "Bóveda" in opcion:
                 if dias_ocupacion > 3:
                     col_r3.metric("Límite de Ocupación", f"{dias_ocupacion:.1f} Días", "⚠️ Demasiado tiempo. Subdivide tu potrero.", delta_color="inverse")
                 else:
-                    col_r3.metric("Límite de Ocupación", f"{dias_ocupacion:.1f} Días", "✅ Rango perfecto de pastoreo.", delta_color="off")    
+                    col_r3.metric("Límite de Ocupación", f"{dias_ocupacion:.1f} Días", "✅ Rango perfecto de pastoreo.", delta_color="off")
