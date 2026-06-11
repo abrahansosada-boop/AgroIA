@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# uv / entorno
+.python-version
+
+# Secretos
+.env
+.streamlit/secrets.toml
+
+# Sistema
+.DS_Store
