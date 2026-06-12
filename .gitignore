@@ -18,3 +18,8 @@ __pycache__/
 
 # Sistema
 .DS_Store
+
+agro_venv/
+.*
+!.gitignore
+!.streamlit/
