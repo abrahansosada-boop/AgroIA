@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import pulp
+from motores.calculos_zootecnicos import optimizar_dieta_pulp
 # SÚPER-LABORATORIO
 def renderizar_laboratorio(base_datos, botiquin, supabase, registrar_bitacora, es_administrador):
     st.header("🧪 Súper-Laboratorio y Centro de Mando")
@@ -363,6 +364,7 @@ def renderizar_laboratorio(base_datos, botiquin, supabase, registrar_bitacora, e
             with col_sis: sistema = st.radio("1. Sistema de Producción:", ["🏡 Estabulado (Corral)", "🌿 Pastoreo (Suplemento)"])
             with col_etapa: etapa = st.selectbox("2. Etapa de Vida:", ["🍼 Inicio (Desarrollo de Rumen)", "📈 Desarrollo (Crecimiento)", "🥩 Finalización"])
 
+            # NOTA: Este botón aún es solo visual. Falta conectarlo a restricciones de la IA.
             usar_promotores = st.toggle("💊 Incluir Promotores / Ionóforos (Ej. Monensina)")
             st.divider()
 
@@ -372,50 +374,17 @@ def renderizar_laboratorio(base_datos, botiquin, supabase, registrar_bitacora, e
             with col2:
                 req_energia = st.number_input("⚡ Objetivo de Energía (Mcal)", min_value=1.0, max_value=4.0, value=2.5, step=0.1)
 
-
             if st.button("🧠 GENERAR FÓRMULA ÓPTIMA"):
-                prob = pulp.LpProblem("Dieta_Barata", pulp.LpMinimize)
-                insumos = list(base_datos.keys())
-                x = pulp.LpVariable.dicts("Ingrediente", insumos, lowBound=0)
 
-                prob += pulp.lpSum([x[i] * base_datos[i]["costo_kg"] for i in insumos]), "Costo"
-                prob += pulp.lpSum([x[i] for i in insumos]) == 100, "Peso_100"
-                prob += pulp.lpSum([x[i] * base_datos[i]["proteina_pct"] for i in insumos]) >= req_proteina * 100, "Req_Prot"
-                prob += pulp.lpSum([x[i] * base_datos[i]["energia_mcal"] for i in insumos]) >= req_energia * 100, "Req_Ener"
-
-                for i in insumos:
-                    if "max_pct" in base_datos[i]:
-                        prob += x[i] <= base_datos[i]["max_pct"], f"Max_{i}"
-
-                toxicos = [i for i in ["urea_agricola", "pollinaza", "harina_pescado"] if i in insumos]
-                if "urea_agricola" in toxicos: prob += x["urea_agricola"] <= 0.5, "Tope_Urea"
-                if "pollinaza" in toxicos: prob += x["pollinaza"] <= 12.0, "Tope_Pollinaza"
-                if "harina_pescado" in toxicos: prob += x["harina_pescado"] <= 4.0, "Tope_Pescado"
-                if len(toxicos) >= 2: prob += pulp.lpSum([x[i] for i in toxicos]) <= 11.0, "Colchon_Paranoia_Palatabilidad"
-
-                prob.solve()
-
-                if pulp.LpStatus[prob.status] == "Optimal":
-                    resultados = []
-                    costo_cien_kg = 0
-                    for i in insumos:
-                        if x[i].varValue > 0.01:
-                            costo_ing = x[i].varValue * base_datos[i]["costo_kg"]
-                            costo_cien_kg += costo_ing
-                            resultados.append({
-                                "Insumo": i.upper(), "Kilos por 100kg": round(x[i].varValue, 2),
-                                "Costo ($)": round(costo_ing, 2)
-                            })
-
-                    st.session_state['solucion_ia'] = {
-                        "df": pd.DataFrame(resultados), "costo_kg": costo_cien_kg / 100,
-                        "detalles_ia": { "ingredientes": [i for i in insumos if x[i].varValue > 0.01], "kilos": {i: float(x[i].varValue) for i in insumos if x[i].varValue > 0.01} },
-                        "proteina_log": req_proteina, "energia_log": req_energia
-                    }
+                resultado = optimizar_dieta_pulp(base_datos, req_proteina, req_energia)
+                
+                if resultado["exito"]:
+                    st.session_state['solucion_ia'] = resultado
                     st.balloons()
                 else:
                     st.session_state['solucion_ia'] = None
-                    st.error("❌ Misión Imposible. Faltan ingredientes para esta meta.")
+                    st.error(f"❌ {resultado['error']}")
+
 
             if 'solucion_ia' in st.session_state and st.session_state['solucion_ia'] is not None:
                 sol = st.session_state['solucion_ia']
@@ -450,15 +419,29 @@ def renderizar_laboratorio(base_datos, botiquin, supabase, registrar_bitacora, e
                     st.metric("💰 Costo Total del Lote", f"${costo_lote_ia:,.2f} MXN")
 
                     try:
+                        # 1. Registrar gasto en bitácora
                         detalle = f"Lote IA Tolva: {kilos_totales_ia:,.0f}kg al {sol['proteina_log']}% de prot."
                         supabase.table("bitacora").insert({"accion": "Preparación IA", "detalle": detalle, "gasto_total": costo_lote_ia, "kilos_procesados": kilos_totales_ia}).execute()
 
+                        # 2. DESCONTAR KILOS DEL INVENTARIO FÍSICO
+                        for item in receta_tolva:
+                            insumo_usado = item["Insumo"].lower().replace(" ", "_") # Formato BD (ej. maiz_molido)
+                            kilos_usados = item["Kilos a echar a la Tolva"]
+                            
+                            # Restar localmente
+                            base_datos[insumo_usado]["stock_kg"] -= kilos_usados
+                            
+                            # Actualizar en Supabase
+                            supabase.table("inventario").update({
+                                "stock_kg": float(base_datos[insumo_usado]["stock_kg"])
+                            }).eq("insumo", insumo_usado).execute()
+
+                        # 3. Guardar en memoria para proyecciones
                         st.session_state['mezcla'] = {
                             "proteina": sol['proteina_log'], "energia": sol['energia_log'], "fibra": 10.0,
                             "costo_total": costo_lote_ia, "total_kilos": kilos_totales_ia,
                             "costo_kg": sol['costo_kg'], "detalle": "Fórmula IA Optimizada"
                         }
-                        st.success(f"✅ ¡Gastos Registrados! Ya puedes ir al Módulo 4: Proyecciones Financieras.")
+                        st.success(f"✅ ¡Gastos Registrados e Inventario Descontado! Ya puedes ir al Módulo 4.")
                     except Exception as e:
                         st.error(f"⚠️ Error al registrar en la bóveda: {e}")
-

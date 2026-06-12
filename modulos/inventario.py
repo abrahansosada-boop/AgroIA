@@ -109,11 +109,15 @@ def renderizar_inventario(base_datos, supabase, registrar_bitacora, es_administr
                     "costo_kg": float(precio_final)
                 }).eq("insumo", insumo_edit).execute()
 
+                if not respuesta.data:
+                    st.error(f"❌ Falso positivo evitado: No se encontró la fila '{insumo_edit}' en la tabla de Supabase. Revisa que los nombres coincidan.")
+                    return 
+
                 base_datos[insumo_edit]["stock_kg"] = float(nuevo_stock)
                 base_datos[insumo_edit]["costo_kg"] = float(precio_final)
                 
                 registrar_bitacora(tipo_accion, detalle)
-                st.success(f"✅ ¡Movimiento de {insumo_edit.upper()} registrado exitosamente!")
+                st.success(f"✅ ¡Movimiento de {insumo_edit.upper()} registrado exitosamente en la Nube!")
                 
                 time.sleep(1) 
                 st.rerun()

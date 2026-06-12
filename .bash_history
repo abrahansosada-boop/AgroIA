@@ -293,3 +293,35 @@ steamlit run app0.1.py
 streamlit run app0.1.py
 /home/abrah/agro_env/bin/python /home/abrah/app0.1.py
 streamlit run app0.1.py
+/home/abrah/agro_env/bin/python /home/abrah/app0.1.py
+git pull origin main
+git config pull.rebase false
+git pull origin main
+git pull origin main --allow-unrelated-histories
+streamlit run app0.1.py
+/home/abrah/agro_env/bin/python /home/abrah/app0.1.py
+git add .
+git commit -m "Respaldando mis módulos completos antes de fusionar la seguridad"
+git pull origin main --allow-unrelated-histories
+/home/abrah/agro_env/bin/python /home/abrah/app0.1.py
+git add .
+git commit -m "Conflictos de seguridad resueltos"
+/home/abrah/agro_env/bin/python /home/abrah/modulos/panel_principal.py
+/home/abrah/agro_env/bin/python /home/abrah/app0.1.py
+streamlit run app.1.py
+streamlit run app0.1.py
+/home/abrah/agro_env/bin/python /home/abrah/app0.1.py
+git add .
+git commit -m "Arquitectura modular completada."
+git push origin main
+/home/abrah/agro_env/bin/python /home/abrah/app0.1.py
+git reset HEAD~1
+git rm -r --cached .vscode-server/
+git add .
+git commit -m "Arquitectura modular completada."
+git push origin main
+/home/abrah/agro_env/bin/python /home/abrah/app0.1.py
+git reset origin/main
+git add .
+git commit -m "Arquitectura modular."
+git push origin main
