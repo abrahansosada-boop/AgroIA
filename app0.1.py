@@ -9,22 +9,55 @@ import pulp
 from supabase import create_client, Client
 
 from config import ConfigurationError, load_config
+from demo_supabase import DemoSupabaseClient, cargar_base_demo
+from motores.calculos_zootecnicos import (
+    calcular_dosis_sanitaria,
+    calcular_mezcla,
+    optimizar_dieta,
+    validar_inventario_para_receta,
+)
+
+
+class DemoConfig:
+    supabase_url = ""
+    supabase_key = ""
+    app_password = "demo"
+    admin_pin = "0000"
+
+
+st.set_page_config(page_title="AgroIA v4.0", page_icon="🐄", layout="wide")
+
+demo_mode = False
+demo_reason = ""
 
 
 try:
     app_config = load_config(secrets=st.secrets)
 except ConfigurationError as error:
-    st.error(
+    demo_mode = True
+    demo_reason = (
+        "Configuracion incompleta o invalida. Faltan estas claves: "
+        + ", ".join(error.invalid_keys)
+    )
+    app_config = DemoConfig()
+    st.warning(
         "Configuración incompleta o inválida. Define estas claves: "
         + ", ".join(error.invalid_keys)
     )
-    st.stop()
 
 @st.cache_resource
 def init_connection(url, key):
     return create_client(url, key)
 
-supabase = init_connection(app_config.supabase_url, app_config.supabase_key)
+if demo_mode:
+    supabase = DemoSupabaseClient()
+else:
+    try:
+        supabase = init_connection(app_config.supabase_url, app_config.supabase_key)
+    except Exception as error:
+        demo_mode = True
+        demo_reason = f"No se pudo inicializar Supabase: {error}"
+        supabase = DemoSupabaseClient()
 
 # (LOGIN)
 if "autenticado" not in st.session_state:
@@ -33,7 +66,9 @@ if "autenticado" not in st.session_state:
 if not st.session_state["autenticado"]:
     st.title("🔒 Acceso Restringido - AgroIA")
     st.write("Por favor, identifícate para entrar al sistema del rancho.")
-    
+    if demo_mode:
+        st.info("Modo demo activo. Usa password `demo` para entrar.")
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         password = st.text_input("Contraseña Maestra:", type="password")
@@ -46,8 +81,12 @@ if not st.session_state["autenticado"]:
     st.stop()
  
 # CONFIGURACION
-st.set_page_config(page_title="AgroIA v4.0", page_icon="🐄", layout="wide")
 st.title("🌾 Sistema de Inteligencia Agropecuaria v4.0")
+if demo_mode:
+    st.warning(
+        "Modo demo/local activo. La app esta usando datos de ejemplo y no Supabase real. "
+        + demo_reason
+    )
 
 # CARGAR DATOS
 try:
@@ -57,6 +96,9 @@ except FileNotFoundError:
     st.error("⚠️ Falta el archivo botiquin.json. El módulo veterinario no funcionará.")
     botiquin = {"desparasitantes": {}, "vacunas": {}}
 def cargar_base_datos():
+    if demo_mode:
+        return cargar_base_demo()
+
     try:
 
         with open("bd_agro_v2.json", "r") as archivo:
@@ -74,8 +116,8 @@ def cargar_base_datos():
         return base_fusionada
         
     except Exception as e:
-        st.error(f"Error de conexión: {e}")
-        return {}
+        st.warning(f"Error de conexion con Supabase. Se cargan datos demo: {e}")
+        return cargar_base_demo()
 base_datos = cargar_base_datos()
 # BITÁCORA EN LA NUBE
 def registrar_bitacora(accion, detalle, gasto_total=0.0, kilos_procesados=0.0):
@@ -441,12 +483,12 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
             else:
                 datos_vac = next(d for d in botiquin["vacunas"].values() if d["nombre"] == vac_sel)
 
-            dosis_exacta_ml = peso * datos_desp["dosis_ml_por_kg"]
-            costo_desp = dosis_exacta_ml * datos_desp["costo_por_ml"]
-            costo_vac = datos_vac["costo_por_dosis"]
-            
-            costo_salud_total = costo_desp + costo_vac
-            retiro_dias = max(datos_desp["tiempo_retiro_dias"], datos_vac["tiempo_retiro_dias"])
+            dosis = calcular_dosis_sanitaria(peso, datos_desp, datos_vac)
+            dosis_exacta_ml = dosis["dosis_desparasitante_ml"]
+            costo_desp = dosis["costo_desparasitante"]
+            costo_vac = dosis["costo_vacuna"]
+            costo_salud_total = dosis["costo_total"]
+            retiro_dias = int(dosis["retiro_dias"])
 
             st.divider()
             
@@ -601,10 +643,23 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
 
             if st.button("⚖️ AUDITAR MEZCLA MANUAL"):
                 if total_kilos_mezcla > 0:
-                    prot_acum = sum((item["kilos"] * item["datos"]["proteina_pct"]) for item in mezcla_final) / total_kilos_mezcla
-                    ener_acum = sum((item["kilos"] * item["datos"]["energia_mcal"]) for item in mezcla_final) / total_kilos_mezcla
-                    fibr_acum = sum((item["kilos"] * item["datos"]["fibra_pct"]) for item in mezcla_final) / total_kilos_mezcla
-                    costo_tot = sum((item["kilos"] * item["datos"]["costo_kg"]) for item in mezcla_final)
+                    kilos_por_insumo = {
+                        item["nombre"]: item["kilos"]
+                        for item in mezcla_final
+                        if item["kilos"] > 0
+                    }
+                    errores_inventario = validar_inventario_para_receta(base_datos, kilos_por_insumo)
+                    if errores_inventario:
+                        st.warning(
+                            "Inventario insuficiente para uso real: "
+                            + "; ".join(errores_inventario)
+                        )
+
+                    mezcla = calcular_mezcla(base_datos, kilos_por_insumo)
+                    prot_acum = mezcla["proteina"]
+                    ener_acum = mezcla["energia"]
+                    fibr_acum = mezcla["fibra"]
+                    costo_tot = mezcla["costo_total"]
 
                     st.session_state['mezcla'] = {
                         "proteina": prot_acum, "energia": ener_acum, "fibra": fibr_acum,
@@ -712,48 +767,32 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
 
 
             if st.button("🧠 GENERAR FÓRMULA ÓPTIMA"):
-                prob = pulp.LpProblem("Dieta_Barata", pulp.LpMinimize)
-                insumos = list(base_datos.keys())
-                x = pulp.LpVariable.dicts("Ingrediente", insumos, lowBound=0)
+                solucion = optimizar_dieta(
+                    base_datos,
+                    req_proteina=req_proteina,
+                    req_energia=req_energia,
+                    considerar_stock=True,
+                )
+                insumos = list(solucion.ingredientes.keys())
 
-                prob += pulp.lpSum([x[i] * base_datos[i]["costo_kg"] for i in insumos]), "Costo"
-                prob += pulp.lpSum([x[i] for i in insumos]) == 100, "Peso_100"
-                prob += pulp.lpSum([x[i] * base_datos[i]["proteina_pct"] for i in insumos]) >= req_proteina * 100, "Req_Prot"
-                prob += pulp.lpSum([x[i] * base_datos[i]["energia_mcal"] for i in insumos]) >= req_energia * 100, "Req_Ener"
-
-                for i in insumos:
-                    if "max_pct" in base_datos[i]:
-                        prob += x[i] <= base_datos[i]["max_pct"], f"Max_{i}"
-
-                toxicos = [i for i in ["urea_agricola", "pollinaza", "harina_pescado"] if i in insumos]
-                if "urea_agricola" in toxicos: prob += x["urea_agricola"] <= 0.5, "Tope_Urea"
-                if "pollinaza" in toxicos: prob += x["pollinaza"] <= 12.0, "Tope_Pollinaza"
-                if "harina_pescado" in toxicos: prob += x["harina_pescado"] <= 4.0, "Tope_Pescado"
-                if len(toxicos) >= 2: prob += pulp.lpSum([x[i] for i in toxicos]) <= 11.0, "Colchon_Paranoia_Palatabilidad"
-
-                prob.solve()
-
-                if pulp.LpStatus[prob.status] == "Optimal":
+                if solucion.estado == "Optimal":
                     resultados = []
-                    costo_cien_kg = 0
-                    for i in insumos:
-                        if x[i].varValue > 0.01:
-                            costo_ing = x[i].varValue * base_datos[i]["costo_kg"]
-                            costo_cien_kg += costo_ing
-                            resultados.append({
-                                "Insumo": i.upper(), "Kilos por 100kg": round(x[i].varValue, 2),
-                                "Costo ($)": round(costo_ing, 2)
-                            })
+                    for i, kilos in solucion.ingredientes.items():
+                        costo_ing = kilos * base_datos[i]["costo_kg"]
+                        resultados.append({
+                            "Insumo": i.upper(), "Kilos por 100kg": round(kilos, 2),
+                            "Costo ($)": round(costo_ing, 2)
+                        })
 
                     st.session_state['solucion_ia'] = {
-                        "df": pd.DataFrame(resultados), "costo_kg": costo_cien_kg / 100,
-                        "detalles_ia": { "ingredientes": [i for i in insumos if x[i].varValue > 0.01], "kilos": {i: float(x[i].varValue) for i in insumos if x[i].varValue > 0.01} },
+                        "df": pd.DataFrame(resultados), "costo_kg": solucion.costo_kg,
+                        "detalles_ia": { "ingredientes": list(solucion.ingredientes.keys()), "kilos": solucion.ingredientes },
                         "proteina_log": req_proteina, "energia_log": req_energia
                     }
                     st.balloons()
                 else:
                     st.session_state['solucion_ia'] = None
-                    st.error("❌ Misión Imposible. Faltan ingredientes para esta meta.")
+                    st.error(f"❌ Misión Imposible. {solucion.mensaje}")
 
             if 'solucion_ia' in st.session_state and st.session_state['solucion_ia'] is not None:
                 sol = st.session_state['solucion_ia']

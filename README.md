@@ -44,3 +44,11 @@ Módulo avanzado y exclusivo diseñado para blindar al rancho contra sequías e 
 * **Gestor de Entornos y Dependencias:** `uv`
 * **Gestión de Base de Datos:** Supabase (PostgreSQL)
 * **Testing / Calidad (QA):** Pytest para pruebas unitarias.
+
+---
+
+## Configuracion de Supabase y modo demo
+
+La app puede correr sin Supabase real usando modo demo/local. Para configurar
+tablas, variables de entorno y datos de ejemplo, consulta
+[`docs/supabase.md`](docs/supabase.md).
