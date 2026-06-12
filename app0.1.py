@@ -168,4 +168,4 @@ elif "Peso" in opcion:
 
 # 👑 MÓDULO: BÓVEDA PREMIUM DE GANADERÍA REGENERATIVA
 elif "Bóveda" in opcion:
-    renderizar_boveda()
+    renderizar_boveda(base_datos)

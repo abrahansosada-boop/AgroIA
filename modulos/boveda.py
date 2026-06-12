@@ -1,6 +1,6 @@
 import streamlit as st
 # 👑 MÓDULO: BÓVEDA PREMIUM DE GANADERÍA REGENERATIVA & RESILIENCIA GLOBAL
-def renderizar_boveda():
+def renderizar_boveda(base_datos):
     st.title("👑 Bóveda Premium: Hub Global de Tecnologías Resilientes")
     st.markdown("""
         Este módulo recopila sistemas de manejo y optimización de recursos forrajeros validados en ecosistemas de alta adversidad climatológica. Diseñado para reducir la dependencia de insumos externos y mitigar los efectos de sequías prolongadas mediante protocolos operativos estandarizados.
@@ -272,9 +272,9 @@ def renderizar_boveda():
                 col_f1, col_f2 = st.columns(2)
                 
                 with col_f1:
-                    costo_tamo_base = st.number_input("Costo Tamo Seco (Ton) [$]:", min_value=100, value=1200, step=100, key="costo_tamo_silo_unico")
-                    costo_urea = st.number_input("Costo Urea (kg) [$]:", min_value=1, value=12, step=1, key="costo_urea_silo_unico")
-                    costo_melaza = st.number_input("Costo Melaza (kg) [$]:", min_value=1, value=6, step=1, key="costo_melaza_silo_unico")
+                    costo_tamo_base = st.number_input("Costo Tamo Seco (Ton) [$]:", min_value=100.0, value=float(base_datos.get("rastrojo_maiz", {}).get("costo_kg", 1.5) * 1000), step=100.0, key="costo_tamo_silo_unico")
+                    costo_urea = st.number_input("Costo Urea (kg) [$]:", min_value=1.0, value=float(base_datos.get("urea_agricola", {}).get("costo_kg", 12.0)), step=1.0, key="costo_urea_silo_unico")
+                    costo_melaza = st.number_input("Costo Melaza (kg) [$]:", min_value=1.0, value=float(base_datos.get("melaza_cana", {}).get("costo_kg", 6.0)), step=1.0, key="costo_melaza_silo_unico")
                 with col_f2:
                     costo_paca_comercial = st.number_input("Costo Paca Calidad Media (Ton) [$]:", min_value=1000, value=4500, step=100, key="costo_paca_silo_unico")
                 
@@ -430,22 +430,8 @@ def renderizar_boveda():
                 nitrogeno_puro_kg = excretas_frescas_noche * 0.005 
                 urea_equivalente_kg = nitrogeno_puro_kg * 2.17 
 
-                costo_urea_kg = st.number_input("Precio de la Urea Química ($/kg):", min_value=1.0, value=15.0, step=1.0, key="costo_urea_boma")
-                ahorro_fertilizante_diario = urea_equivalente_kg * costo_urea_kg
-
-                col_f1, col_f2 = st.columns(2)
-                col_f1.metric("Estiércol y Orina", f"{excretas_frescas_noche:,.1f} kg / noche")
-                col_f2.metric("Ahorro Operativo", f"${ahorro_fertilizante_diario:,.2f} / noche", f"Equivalente a {urea_equivalente_kg:.1f} kg de Urea")
-
-
-
-                st.markdown("##### 💵 Ahorro Equivalente en Agroquímicos")
-                
-                excretas_frescas_noche = (peso_total_hato * 0.08) / 2
-                nitrogeno_puro_kg = excretas_frescas_noche * 0.005 
-                urea_equivalente_kg = nitrogeno_puro_kg * 2.17 
-
-                costo_urea_kg = st.number_input("Precio de la Urea Química ($/kg):", min_value=1.0, value=15.0, step=1.0, key="costo_urea_boma")
+                # Reemplaza la línea del input de urea (433 o 448 según cual dejes):
+                costo_urea_kg = st.number_input("Precio de la Urea Química ($/kg):", min_value=1.0, value=float(base_datos.get("urea_agricola", {}).get("costo_kg", 15.0)), step=1.0, key="costo_urea_boma")
                 ahorro_fertilizante_diario = urea_equivalente_kg * costo_urea_kg
 
                 col_f1, col_f2 = st.columns(2)
