@@ -1,0 +1,14 @@
+[theme]
+# Verde "Tractor Tech" para botones principales y acentos
+primaryColor = "#2ecc71" 
+
+# Gris Pizarra Oscuro 
+backgroundColor = "#1a1c23" 
+
+# Gris Industrial más claro para el menú lateral y fondos secundarios
+secondaryBackgroundColor = "#252830" 
+
+# Texto blanco brillante (Contraste alto)
+textColor = "#f8f9fa" 
+
+font = "sans serif"
