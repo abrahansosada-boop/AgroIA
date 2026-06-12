@@ -4,11 +4,15 @@ import json
 import pandas as pd
 import yfinance as yf
 from datetime import datetime
+from pathlib import Path
 import plotly.express as px
 import pulp  
 from supabase import create_client, Client
 
-from config import ConfigurationError, load_config
+from agroia.config import ConfigurationError, load_config
+
+
+RESOURCE_DIR = Path(__file__).resolve().parents[2] / "resources"
 
 
 try:
@@ -51,7 +55,7 @@ st.title("🌾 Sistema de Inteligencia Agropecuaria v4.0")
 
 # CARGAR DATOS
 try:
-    with open("botiquin.json", "r", encoding="utf-8") as f:
+    with (RESOURCE_DIR / "botiquin.json").open(encoding="utf-8") as f:
         botiquin = json.load(f)
 except FileNotFoundError:
     st.error("⚠️ Falta el archivo botiquin.json. El módulo veterinario no funcionará.")
@@ -59,7 +63,7 @@ except FileNotFoundError:
 def cargar_base_datos():
     try:
 
-        with open("bd_agro_v2.json", "r") as archivo:
+        with (RESOURCE_DIR / "bd_agro_v2.json").open(encoding="utf-8") as archivo:
             base_fusionada = json.load(archivo)
 
         respuesta = supabase.table("inventario").select("*").execute()

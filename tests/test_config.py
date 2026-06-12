@@ -1,6 +1,6 @@
 import pytest
 
-from config import ConfigurationError, load_config
+from agroia.config import ConfigurationError, load_config
 
 
 VALID_ENVIRONMENT = {
