@@ -718,6 +718,7 @@ elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
             if st.button("🧠 GENERAR FÓRMULA ÓPTIMA"):
                 prob = pulp.LpProblem("Dieta_Barata", pulp.LpMinimize)
                 insumos = list(base_datos.keys())
+                # TODO: Migrate PuLP variable creation / CBC solver setup before upgrading to PuLP 4.
                 x = pulp.LpVariable.dicts("Ingrediente", insumos, lowBound=0)
 
                 prob += pulp.lpSum([x[i] * base_datos[i]["costo_kg"] for i in insumos]), "Costo"
