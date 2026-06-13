@@ -1,15 +1,16 @@
+import hmac
 from dataclasses import dataclass
 
-import hmac
 import streamlit as st
 from supabase import Client
 
 from agroia.config import ConfigurationError, load_config
 from agroia.data import (
     init_connection,
-    load_botiquin,
     load_base_datos,
+    load_botiquin,
 )
+from agroia.ui.main_menu import render_main_menu
 
 
 @dataclass
@@ -37,7 +38,8 @@ def bootstrap_app() -> AppContext:
     botiquin = load_botiquin()
     base_datos = load_base_datos(supabase)
 
-    es_administrador, opcion = render_sidebar(app_config)
+    es_administrador = render_access_level(app_config)
+    opcion = render_main_menu(es_administrador)
 
     return AppContext(
         supabase=supabase,
@@ -92,39 +94,9 @@ def require_login(app_config) -> None:
     st.stop()
 
 
-def render_sidebar(app_config) -> tuple[bool, str]:
+def render_access_level(app_config) -> bool:
     st.sidebar.divider()
     st.sidebar.subheader("🔐 Nivel de Acceso")
 
     pin_secreto = st.sidebar.text_input("PIN de Seguridad:", type="password")
-    es_administrador = hmac.compare_digest(pin_secreto, app_config.admin_pin)
-
-    if es_administrador:
-        st.sidebar.success("Modo Administrador Activado 🤠")
-        modulos_disponibles = [
-            "🏠 Panel Principal",
-            "📦 Inventario de Insumos",
-            "🧪 Super Laboratorio",
-            "💰 Proyección Financiera",
-            "🕵️ Caja Negra (Bitácora)",
-            "💎 Bóveda Premium (IA)",
-            "🪦 Gestión de Mortandad (Bajas)",
-            "⚖️ Control de Peso (Báscula)",
-        ]
-    else:
-        st.sidebar.info("Modo Operador 👷")
-        modulos_disponibles = [
-            "🏠 Panel Principal",
-            "📦 Inventario de Insumos",
-            "🧪 Super Laboratorio",
-            "🪦 Gestión de Mortandad (Bajas)",
-            "⚖️ Control de Peso (Báscula)",
-        ]
-
-    opcion = st.sidebar.radio(
-        "Seleccione un Módulo:",
-        modulos_disponibles,
-        key="modulo_actual",
-    )
-
-    return es_administrador, opcion
+    return hmac.compare_digest(pin_secreto, app_config.admin_pin)
