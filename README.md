@@ -4,6 +4,13 @@ AgroIA es un ecosistema de software centralizado diseñado para la optimización
 
 ---
 
+## Run and test
+
+```bash
+uv run streamlit run app.py
+uv run pytest
+```
+
 ## 🧩 Módulos Principales del Sistema
 
 El sistema está dividido en herramientas especializadas para cubrir todas las áreas críticas de un rancho moderno:
