@@ -12,13 +12,14 @@ dependencies = [
     "yfinance==1.4.1",
 ]
 
+[build-system]
+requires = ["uv_build>=0.11.16,<0.12.0"]
+build-backend = "uv_build"
+
 [dependency-groups]
 dev = [
     "pytest==9.0.3",
 ]
 
-[tool.uv]
-package = false
-
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = ["src"]
