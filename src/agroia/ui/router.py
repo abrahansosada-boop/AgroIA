@@ -1,0 +1,29 @@
+from agroia.ui.pages.black_box import render_black_box_page
+from agroia.ui.pages.dashboard import render_dashboard_page
+from agroia.ui.pages.financial_projection import render_financial_projection_page
+from agroia.ui.pages.inventory import render_inventory_page
+from agroia.ui.pages.laboratory import render_laboratory_page
+from agroia.ui.pages.mortality import render_mortality_page
+from agroia.ui.pages.resilience_vault import render_resilience_vault_page
+from agroia.ui.pages.weight import render_weight_page
+
+
+def render_selected_page(ctx) -> None:
+    opcion = ctx.opcion
+
+    if "Panel Principal" in opcion:
+        render_dashboard_page(ctx)
+    elif "Inventario" in opcion:
+        render_inventory_page(ctx)
+    elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
+        render_laboratory_page(ctx)
+    elif "Proyección" in opcion:
+        render_financial_projection_page(ctx)
+    elif "Caja Negra" in opcion:
+        render_black_box_page(ctx)
+    elif "Mortandad" in opcion:
+        render_mortality_page(ctx)
+    elif "Peso" in opcion:
+        render_weight_page(ctx)
+    elif "Bóveda" in opcion:
+        render_resilience_vault_page(ctx)
