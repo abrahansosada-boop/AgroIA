@@ -1,8 +1,8 @@
+import os
 from collections.abc import Mapping
 from dataclasses import dataclass
-import os
 from typing import Any
-
+from urllib.parse import urlsplit, urlunsplit
 
 REQUIRED_SECRET_KEYS = (
     "SUPABASE_URL",
@@ -35,6 +35,30 @@ def _read_secret(secrets: Mapping[str, Any], key: str) -> Any:
         return None
 
 
+def _normalize_supabase_url(value: str) -> str | None:
+    candidate = value.strip()
+
+    try:
+        parsed = urlsplit(candidate)
+        port = parsed.port
+    except ValueError:
+        return None
+
+    if (
+        parsed.scheme not in {"http", "https"}
+        or parsed.hostname is None
+        or parsed.username is not None
+        or parsed.password is not None
+        or (port is not None and not 0 < port < 65536)
+        or parsed.path not in {"", "/"}
+        or "?" in candidate
+        or "#" in candidate
+    ):
+        return None
+
+    return urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
+
+
 def load_config(
     *,
     environ: Mapping[str, Any] | None = None,
@@ -46,10 +70,23 @@ def load_config(
     invalid_keys: list[str] = []
 
     for key in REQUIRED_SECRET_KEYS:
-        value = environment[key] if key in environment else _read_secret(secret_store, key)
+        value = (
+            environment[key]
+            if key in environment
+            else _read_secret(secret_store, key)
+        )
         if not isinstance(value, str) or not value.strip():
             invalid_keys.append(key)
             continue
+
+        if key == "SUPABASE_URL":
+            normalized_url = _normalize_supabase_url(value)
+            if normalized_url is None:
+                invalid_keys.append(key)
+                continue
+            values[key] = normalized_url
+            continue
+
         values[key] = value
 
     if invalid_keys:

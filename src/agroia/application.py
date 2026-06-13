@@ -11,6 +11,7 @@ from supabase import create_client, Client
 
 from agroia.config import ConfigurationError, load_config
 from agroia.app_shell import bootstrap_app
+from agroia.data import registrar_bitacora
 
 
 def run() -> None:
