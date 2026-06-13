@@ -116,7 +116,7 @@ def render_inventory_page(ctx) -> None:
                 base_datos[insumo_edit]["stock_kg"] = float(nuevo_stock)
                 base_datos[insumo_edit]["costo_kg"] = float(precio_final)
                 
-                registrar_bitacora(tipo_accion, detalle)
+                registrar_bitacora(supabase, tipo_accion, detalle)
                 st.success(f"✅ ¡Movimiento de {insumo_edit.upper()} registrado exitosamente!")
                 
                 import time
@@ -154,7 +154,11 @@ def render_inventory_page(ctx) -> None:
             }).eq("insumo", llave_maiz).execute()
             
             
-                registrar_bitacora("Radar Chicago", f"Precio del maíz fijado en ${nuevo_precio_maiz} MXN/kg")
+                registrar_bitacora(
+                    supabase,
+                    "Radar Chicago",
+                    f"Precio del maíz fijado en ${nuevo_precio_maiz} MXN/kg",
+                )
                     
                 st.success(f"✅ ¡Éxito! Dólar a ${precio_dolar:.2f} MXN. Nuevo precio del Maíz fijado en **${nuevo_precio_maiz} MXN/kg**.")
                 import time
@@ -163,4 +167,3 @@ def render_inventory_page(ctx) -> None:
                 
             except Exception as e:
                 st.error(f"❌ Los de traje cortaron la conexión: {e}")
-

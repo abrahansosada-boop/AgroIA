@@ -4,6 +4,7 @@ from agroia.data import registrar_bitacora
 
 
 def render_mortality_page(ctx) -> None:
+    supabase = ctx.supabase
     st.header("🪦 Gestor de Mortandad y Pérdidas")
     st.markdown("Registra las bajas del rebaño para dar de baja las 'bocas que alimentar' y calcular la fuga de capital.")
 
@@ -41,7 +42,7 @@ def render_mortality_page(ctx) -> None:
             perdida_medica = bajas * costo_unitario
 
         detalle = f"Baja de {bajas} cabezas por {causa}. Fuga de capital médico: ${perdida_medica:.2f}"
-        registrar_bitacora("Baja por Mortandad", detalle)
+        registrar_bitacora(supabase, "Baja por Mortandad", detalle)
         
         if 'fuga_capital' not in st.session_state:
             st.session_state['fuga_capital'] = 0.0

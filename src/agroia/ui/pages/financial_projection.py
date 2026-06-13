@@ -6,6 +6,7 @@ from agroia.data import registrar_bitacora
 
 
 def render_financial_projection_page(ctx) -> None:
+    supabase = ctx.supabase
     st.header("📈 Centro de Control Financiero")
     if 'perfil' not in st.session_state or 'mezcla' not in st.session_state:
         st.error("⚠️ Datos incompletos. Por favor, configure la genética y la dieta de los animales directamente en el **Súper-Laboratorio** para calcular la rentabilidad.")
@@ -115,8 +116,13 @@ def render_financial_projection_page(ctx) -> None:
                     "Margen Utilidad": round(margen_por_kilo, 2)
                 }
                 
-                registrar_bitacora("Proyección Financiera", 
-                                f"Raza: {perf['raza'].upper()} | Margen: ${round(margen_por_kilo, 2)}/kg | Costo Prod: ${round(costo_kg_carne, 2)}/kg")
+                registrar_bitacora(
+                    supabase,
+                    "Proyección Financiera",
+                    f"Raza: {perf['raza'].upper()} | "
+                    f"Margen: ${round(margen_por_kilo, 2)}/kg | "
+                    f"Costo Prod: ${round(costo_kg_carne, 2)}/kg",
+                )
                 
                 st.success("✅ ¡Proyección guardada en la Caja Negra de la nube!")
                 
