@@ -4,7 +4,7 @@ from agroia.data import registrar_bitacora
 
 
 def render_weight_page(ctx) -> None:
-    supabase = ctx.supabase
+    db = ctx.db
     st.header("⚖️ Báscula y Rendimiento")
     st.markdown("Registra el peso real para auditar si la dieta está dando los resultados proyectados.")
 
@@ -38,7 +38,7 @@ def render_weight_page(ctx) -> None:
 
         meta_ia = st.number_input("Meta de ganancia diaria proyectada (kg/día)", value=float(round(meta_sugerida, 2)), step=0.1)
 
-    if st.button("⚖️ Calcular y Registrar Pesada", use_container_width=True):
+    if st.button("⚖️ Calcular y Registrar Pesada", width="stretch"):
         if not id_animal:
             st.error("⚠️ Ponle un nombre al Lote o un número al Arete para registrarlo.")
         elif peso_actual <= peso_anterior:
@@ -63,7 +63,7 @@ def render_weight_page(ctx) -> None:
                 st.error("❌ **PELIGRO:** Los animales están estancados. Revisa sanidad, estrés por clima o corrige la dieta (Módulo 3).")
 
             detalle = f"Pesada {id_animal}: {peso_actual}kg. GDP: {gdp_real:.2f}kg/día (Meta: {meta_ia})."
-            registrar_bitacora(supabase, "Control de Peso", detalle)
+            registrar_bitacora(db, "Control de Peso", detalle)
             if 'perfil' in st.session_state:
                 st.session_state['perfil']['peso'] = peso_actual
                 st.success(f"🔄 ¡Sistema Nervioso Activo! El peso base para tus finanzas se actualizó automáticamente a {peso_actual} kg.")

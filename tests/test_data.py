@@ -4,18 +4,18 @@ from agroia.data import registrar_bitacora
 
 
 def test_registrar_bitacora_uses_supplied_client() -> None:
-    supabase = MagicMock()
+    db = MagicMock()
 
     result = registrar_bitacora(
-        supabase,
+        db,
         "Control de Peso",
         "Pesada registrada",
         gasto_total=125,
         kilos_procesados=42,
     )
 
-    supabase.table.assert_called_once_with("bitacora")
-    supabase.table.return_value.insert.assert_called_once_with(
+    db.table.assert_called_once_with("bitacora")
+    db.table.return_value.insert.assert_called_once_with(
         {
             "accion": "Control de Peso",
             "detalle": "Pesada registrada",
@@ -23,5 +23,5 @@ def test_registrar_bitacora_uses_supplied_client() -> None:
             "kilos_procesados": 42.0,
         }
     )
-    supabase.table.return_value.insert.return_value.execute.assert_called_once_with()
+    db.table.return_value.insert.return_value.execute.assert_called_once_with()
     assert result is True

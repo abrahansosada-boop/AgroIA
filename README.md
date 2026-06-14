@@ -6,8 +6,44 @@ AgroIA es un ecosistema de software centralizado diseñado para la optimización
 
 ## Run and test
 
+AgroIA uses the real Supabase backend by default. Configure these values through
+environment variables or `.streamlit/secrets.toml`:
+
+```toml
+SUPABASE_URL = "https://<project-ref>.supabase.co"
+SUPABASE_KEY = "replace-with-supabase-key"
+APP_PASSWORD = "replace-with-app-password"
+ADMIN_PIN = "0000"
+```
+
+Start the normal Supabase-backed application:
+
 ```bash
 uv run streamlit run app.py
+```
+
+Supabase mode can also be selected explicitly:
+
+```bash
+AGROIA_DATA_BACKEND=supabase uv run streamlit run app.py
+```
+
+For a local demonstration, select the in-memory backend with either an
+environment variable or the Streamlit script argument separator:
+
+```bash
+AGROIA_DATA_BACKEND=demo uv run streamlit run app.py
+uv run streamlit run app.py -- --demo
+```
+
+Demo mode does not require `SUPABASE_URL` or `SUPABASE_KEY`, but
+`APP_PASSWORD` and `ADMIN_PIN` are still required. Demo changes persist across
+Streamlit reruns in the current browser session only; they are not written to
+Supabase and reset when the session or server ends.
+
+Run the test suite:
+
+```bash
 uv run pytest
 ```
 

@@ -6,7 +6,7 @@ from agroia.data import registrar_bitacora
 
 
 def render_inventory_page(ctx) -> None:
-    supabase = ctx.supabase
+    db = ctx.db
     base_datos = ctx.base_datos
     es_administrador = ctx.es_administrador
     st.header("📦 Control de Bodega y Precios")
@@ -56,7 +56,7 @@ def render_inventory_page(ctx) -> None:
     df_inventario = pd.DataFrame(inventario_visual)
     if not es_administrador:
         df_inventario = df_inventario.drop(columns=["Costo Actual ($/kg)"])        
-    st.dataframe(df_inventario, use_container_width=True, hide_index=True)
+    st.dataframe(df_inventario, width="stretch", hide_index=True)
     
     # ACTUALIZAR INVENTARIO, PRECIOS O MERMAS
     st.divider()
@@ -81,7 +81,7 @@ def render_inventory_page(ctx) -> None:
             perdida_calculada = kilos_mov * base_datos[insumo_edit]['costo_kg']
             st.warning(f"💸 Esto generará una pérdida auditada de **${perdida_calculada:,.2f} MXN**")
 
-    if st.button("💾 Registrar Movimiento en Bóveda", use_container_width=True):
+    if st.button("💾 Registrar Movimiento en Bóveda", width="stretch"):
         if kilos_mov <= 0 and "Ajuste" not in tipo_movimiento:
             st.error("⚠️ Tienes que poner más de 0 kilos para hacer este movimiento.")
         else:
@@ -108,7 +108,7 @@ def render_inventory_page(ctx) -> None:
                     tipo_accion = "Merma Financiera"
                     detalle = f"MERMA de {kilos_mov}kg de {insumo_edit.upper()} por {causa_merma}. Fuga: ${perdida_dinero:,.2f}"
 
-                respuesta = supabase.table("inventario").update({
+                respuesta = db.table("inventario").update({
                     "stock_kg": float(nuevo_stock),
                     "costo_kg": float(precio_final)
                 }).eq("insumo", insumo_edit).execute()
@@ -116,7 +116,7 @@ def render_inventory_page(ctx) -> None:
                 base_datos[insumo_edit]["stock_kg"] = float(nuevo_stock)
                 base_datos[insumo_edit]["costo_kg"] = float(precio_final)
                 
-                registrar_bitacora(supabase, tipo_accion, detalle)
+                registrar_bitacora(db, tipo_accion, detalle)
                 st.success(f"✅ ¡Movimiento de {insumo_edit.upper()} registrado exitosamente!")
                 
                 import time
@@ -148,14 +148,14 @@ def render_inventory_page(ctx) -> None:
                 
                 base_datos[llave_maiz]["costo_kg"] = nuevo_precio_maiz
                 
-                supabase.table("inventario").update({
+                db.table("inventario").update({
                 "stock_kg": float(base_datos[llave_maiz]["stock_kg"]),
                 "costo_kg": float(base_datos[llave_maiz]["costo_kg"])
             }).eq("insumo", llave_maiz).execute()
             
             
                 registrar_bitacora(
-                    supabase,
+                    db,
                     "Radar Chicago",
                     f"Precio del maíz fijado en ${nuevo_precio_maiz} MXN/kg",
                 )

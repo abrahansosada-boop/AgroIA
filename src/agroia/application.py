@@ -1,7 +1,9 @@
+import sys
+
 from agroia.app_shell import bootstrap_app
 from agroia.ui.router import render_selected_page
 
 
 def run() -> None:
-    ctx = bootstrap_app()
+    ctx = bootstrap_app(sys.argv[1:])
     render_selected_page(ctx)

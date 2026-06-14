@@ -1,10 +1,16 @@
 import pandas as pd
-import pulp
 import streamlit as st
+
+from agroia.domain.livestock import (
+    calcular_dosis_sanitaria,
+    calcular_mezcla,
+    optimizar_dieta,
+    validar_inventario_para_receta,
+)
 
 
 def render_laboratory_page(ctx) -> None:
-    supabase = ctx.supabase
+    db = ctx.db
     base_datos = ctx.base_datos
     botiquin = ctx.botiquin
     st.header("🧪 Súper-Laboratorio y Centro de Mando")
@@ -20,10 +26,10 @@ def render_laboratory_page(ctx) -> None:
         col_act, col_ref = st.columns([3, 1])
         
         with col_ref:
-            st.button("🔄 Actualizar Lista", use_container_width=True)
+            st.button("🔄 Actualizar Lista", width="stretch")
 
         try:
-            respuesta = supabase.table("perfiles_lotes").select("*").execute()
+            respuesta = db.table("perfiles_lotes").select("*").execute()
             
             lotes_guardados = respuesta.data
             
@@ -33,7 +39,7 @@ def render_laboratory_page(ctx) -> None:
                 with col_act:
                     lote_elegido = st.selectbox("Selecciona el lote con el que trabajarás hoy:", nombres_lotes)
                 
-                if st.button("⚡ Activar Lote para Formulación", use_container_width=True):
+                if st.button("⚡ Activar Lote para Formulación", width="stretch"):
                     datos_lote = next(item for item in lotes_guardados if item["nombre_lote"] == lote_elegido)
                     
                     st.session_state['perfil'] = {
@@ -107,12 +113,13 @@ def render_laboratory_page(ctx) -> None:
             else:
                 datos_vac = next(d for d in botiquin["vacunas"].values() if d["nombre"] == vac_sel)
 
-            dosis_exacta_ml = peso * datos_desp["dosis_ml_por_kg"]
-            costo_desp = dosis_exacta_ml * datos_desp["costo_por_ml"]
-            costo_vac = datos_vac["costo_por_dosis"]
-            
-            costo_salud_total = costo_desp + costo_vac
-            retiro_dias = max(datos_desp["tiempo_retiro_dias"], datos_vac["tiempo_retiro_dias"])
+            dosis = calcular_dosis_sanitaria(peso, datos_desp, datos_vac)
+            dosis_exacta_ml = dosis["dosis_desparasitante_ml"]
+            dosis_vacuna_ml = dosis["dosis_vacuna_ml"]
+            costo_desp = dosis["costo_desparasitante"]
+            costo_vac = dosis["costo_vacuna"]
+            costo_salud_total = dosis["costo_total"]
+            retiro_dias = int(dosis["retiro_dias"])
 
             st.divider()
             
@@ -172,7 +179,7 @@ def render_laboratory_page(ctx) -> None:
                 
                 col_r1, col_r2, col_r3 = st.columns(3)
                 col_r1.metric("Desparasitante", f"{dosis_exacta_ml:.1f} ml", f"${costo_desp:.2f} MXN", delta_color="off")
-                col_r2.metric("Vacuna Base", f"{datos_vac['dosis_ml_fija']:.1f} ml", f"${costo_vac:.2f} MXN", delta_color="off")
+                col_r2.metric("Vacuna Base", f"{dosis_vacuna_ml:.1f} ml", f"${costo_vac:.2f} MXN", delta_color="off")
                 col_r3.metric("Inversión Sanitaria", f"${costo_salud_total:.2f} MXN")
 
                 if retiro_dias > 0:
@@ -184,7 +191,7 @@ def render_laboratory_page(ctx) -> None:
 
             if nombre_nuevo_lote:
                 try:
-                    supabase.table("perfiles_lotes").insert({
+                    db.table("perfiles_lotes").insert({
                         "nombre_lote": nombre_nuevo_lote,
                         "raza": raza_sel,
                         "genero": genero,
@@ -267,10 +274,26 @@ def render_laboratory_page(ctx) -> None:
 
             if st.button("⚖️ AUDITAR MEZCLA MANUAL"):
                 if total_kilos_mezcla > 0:
-                    prot_acum = sum((item["kilos"] * item["datos"]["proteina_pct"]) for item in mezcla_final) / total_kilos_mezcla
-                    ener_acum = sum((item["kilos"] * item["datos"]["energia_mcal"]) for item in mezcla_final) / total_kilos_mezcla
-                    fibr_acum = sum((item["kilos"] * item["datos"]["fibra_pct"]) for item in mezcla_final) / total_kilos_mezcla
-                    costo_tot = sum((item["kilos"] * item["datos"]["costo_kg"]) for item in mezcla_final)
+                    kilos_por_insumo = {
+                        item["nombre"]: item["kilos"]
+                        for item in mezcla_final
+                        if item["kilos"] > 0
+                    }
+                    errores_inventario = validar_inventario_para_receta(
+                        base_datos,
+                        kilos_por_insumo,
+                    )
+                    if errores_inventario:
+                        st.warning(
+                            "Inventario insuficiente para uso real: "
+                            + "; ".join(errores_inventario)
+                        )
+
+                    mezcla = calcular_mezcla(base_datos, kilos_por_insumo)
+                    prot_acum = mezcla["proteina"]
+                    ener_acum = mezcla["energia"]
+                    fibr_acum = mezcla["fibra"]
+                    costo_tot = mezcla["costo_total"]
 
                     st.session_state['mezcla'] = {
                         "proteina": prot_acum, "energia": ener_acum, "fibra": fibr_acum,
@@ -297,7 +320,7 @@ def render_laboratory_page(ctx) -> None:
                         })
 
                     df_desglose = pd.DataFrame(datos_desglose)
-                    st.dataframe(df_desglose, use_container_width=True)
+                    st.dataframe(df_desglose, width="stretch")
                     
                     if prot_acum > 18.0: st.warning("⚠️ RIESGO: Nivel de proteína muy alto. Podría causar estrés renal.")
                     elif fibr_acum < 10.0: st.warning("⚠️ RIESGO: Fibra muy baja. Peligro inminente de acidosis ruminal.")
@@ -310,11 +333,14 @@ def render_laboratory_page(ctx) -> None:
 
             if 'mezcla_lista' in st.session_state:
                 st.divider()
-                if st.button("💾 Procesar Lote Manual y Registrar Gasto", use_container_width=True):
+                if st.button(
+                    "💾 Procesar Lote Manual y Registrar Gasto",
+                    width="stretch",
+                ):
                     m = st.session_state['mezcla_lista']
                     detalle_txt = f"Lote MANUAL de {m['total_kilos']}kg al {m['proteina']:.1f}% de proteína."
                     try:
-                        supabase.table("bitacora").insert({"accion": "Preparación Manual", "detalle": detalle_txt, "gasto_total": m['costo_total'], "kilos_procesados": m['total_kilos']}).execute()
+                        db.table("bitacora").insert({"accion": "Preparación Manual", "detalle": detalle_txt, "gasto_total": m['costo_total'], "kilos_procesados": m['total_kilos']}).execute()
                         st.success(f"✅ ¡Dinero auditado! Se registraron ${m['costo_total']:,.2f} MXN en la Nube.")
                         del st.session_state['mezcla_lista']
                     except Exception as e:
@@ -359,7 +385,15 @@ def render_laboratory_page(ctx) -> None:
                         "Insumo": ins.title().replace("_", " "), "Costo por Punto": f"${costo_por_punto:.2f}",
                         "Proteína Total": f"{datos['proteina_pct']}%", "Costo x Kg": f"${datos['costo_kg']:.2f}"
                     })
-            st.dataframe(sorted(analisis_prot, key=lambda x: float(x["Costo por Punto"].replace('$', ''))), use_container_width=True)
+            st.dataframe(
+                sorted(
+                    analisis_prot,
+                    key=lambda x: float(
+                        x["Costo por Punto"].replace("$", "")
+                    ),
+                ),
+                width="stretch",
+            )
             st.divider()
 
             st.markdown("### 🎛️ Motor de Optimización Lineal")
@@ -378,56 +412,42 @@ def render_laboratory_page(ctx) -> None:
 
 
             if st.button("🧠 GENERAR FÓRMULA ÓPTIMA"):
-                prob = pulp.LpProblem("Dieta_Barata", pulp.LpMinimize)
-                insumos = list(base_datos.keys())
-                # TODO: Migrate PuLP variable creation / CBC solver setup before upgrading to PuLP 4.
-                x = pulp.LpVariable.dicts("Ingrediente", insumos, lowBound=0)
+                solucion = optimizar_dieta(
+                    base_datos,
+                    req_proteina=req_proteina,
+                    req_energia=req_energia,
+                    considerar_stock=True,
+                )
 
-                prob += pulp.lpSum([x[i] * base_datos[i]["costo_kg"] for i in insumos]), "Costo"
-                prob += pulp.lpSum([x[i] for i in insumos]) == 100, "Peso_100"
-                prob += pulp.lpSum([x[i] * base_datos[i]["proteina_pct"] for i in insumos]) >= req_proteina * 100, "Req_Prot"
-                prob += pulp.lpSum([x[i] * base_datos[i]["energia_mcal"] for i in insumos]) >= req_energia * 100, "Req_Ener"
-
-                for i in insumos:
-                    if "max_pct" in base_datos[i]:
-                        prob += x[i] <= base_datos[i]["max_pct"], f"Max_{i}"
-
-                toxicos = [i for i in ["urea_agricola", "pollinaza", "harina_pescado"] if i in insumos]
-                if "urea_agricola" in toxicos: prob += x["urea_agricola"] <= 0.5, "Tope_Urea"
-                if "pollinaza" in toxicos: prob += x["pollinaza"] <= 12.0, "Tope_Pollinaza"
-                if "harina_pescado" in toxicos: prob += x["harina_pescado"] <= 4.0, "Tope_Pescado"
-                if len(toxicos) >= 2: prob += pulp.lpSum([x[i] for i in toxicos]) <= 11.0, "Colchon_Paranoia_Palatabilidad"
-
-                prob.solve()
-
-                if pulp.LpStatus[prob.status] == "Optimal":
+                if solucion.estado == "Optimal":
                     resultados = []
-                    costo_cien_kg = 0
-                    for i in insumos:
-                        if x[i].varValue > 0.01:
-                            costo_ing = x[i].varValue * base_datos[i]["costo_kg"]
-                            costo_cien_kg += costo_ing
-                            resultados.append({
-                                "Insumo": i.upper(), "Kilos por 100kg": round(x[i].varValue, 2),
-                                "Costo ($)": round(costo_ing, 2)
-                            })
+                    for insumo, kilos in solucion.ingredientes.items():
+                        costo_ing = kilos * base_datos[insumo]["costo_kg"]
+                        resultados.append({
+                            "Insumo": insumo.upper(),
+                            "Kilos por 100kg": round(kilos, 2),
+                            "Costo ($)": round(costo_ing, 2),
+                        })
 
                     st.session_state['solucion_ia'] = {
-                        "df": pd.DataFrame(resultados), "costo_kg": costo_cien_kg / 100,
-                        "detalles_ia": { "ingredientes": [i for i in insumos if x[i].varValue > 0.01], "kilos": {i: float(x[i].varValue) for i in insumos if x[i].varValue > 0.01} },
+                        "df": pd.DataFrame(resultados), "costo_kg": solucion.costo_kg,
+                        "detalles_ia": {
+                            "ingredientes": list(solucion.ingredientes.keys()),
+                            "kilos": solucion.ingredientes,
+                        },
                         "proteina_log": req_proteina, "energia_log": req_energia
                     }
                     st.balloons()
                 else:
                     st.session_state['solucion_ia'] = None
-                    st.error("❌ Misión Imposible. Faltan ingredientes para esta meta.")
+                    st.error(f"❌ Misión Imposible. {solucion.mensaje}")
 
             if 'solucion_ia' in st.session_state and st.session_state['solucion_ia'] is not None:
                 sol = st.session_state['solucion_ia']
 
                 st.success("✅ ¡Fórmula óptima encontrada!")
                 st.title(f"💰 Costo final proyectado: ${sol['costo_kg']:.2f} MXN / kg")
-                st.dataframe(sol['df'], use_container_width=True, hide_index=True)
+                st.dataframe(sol['df'], width="stretch", hide_index=True)
 
                 st.divider()
                 st.markdown("### 🚜 Auto-Formulador de Lote (Revolvedora IA)")
@@ -438,7 +458,10 @@ def render_laboratory_page(ctx) -> None:
                     with c_lote1: num_cabezas = st.number_input("Número de Animales a alimentar:", min_value=1, value=50, step=5)
                     with c_lote2: dias_dieta = st.number_input("¿Para cuántos días vas a preparar?", min_value=1, value=3, step=1)
                     
-                    btn_tolva = st.form_submit_button("🤖 Generar Receta de Tolva y Pagar Lote", use_container_width=True)
+                    btn_tolva = st.form_submit_button(
+                        "🤖 Generar Receta de Tolva y Pagar Lote",
+                        width="stretch",
+                    )
 
                 if btn_tolva:
                     kilos_totales_ia = num_cabezas * consumo_real * dias_dieta
@@ -451,12 +474,16 @@ def render_laboratory_page(ctx) -> None:
                         kg_insumo_tolva = (row["Kilos por 100kg"] / 100) * kilos_totales_ia
                         receta_tolva.append({"Insumo": row["Insumo"], "Kilos a echar a la Tolva": round(kg_insumo_tolva, 1)})
 
-                    st.dataframe(pd.DataFrame(receta_tolva), use_container_width=True, hide_index=True)
+                    st.dataframe(
+                        pd.DataFrame(receta_tolva),
+                        width="stretch",
+                        hide_index=True,
+                    )
                     st.metric("💰 Costo Total del Lote", f"${costo_lote_ia:,.2f} MXN")
 
                     try:
                         detalle = f"Lote IA Tolva: {kilos_totales_ia:,.0f}kg al {sol['proteina_log']}% de prot."
-                        supabase.table("bitacora").insert({"accion": "Preparación IA", "detalle": detalle, "gasto_total": costo_lote_ia, "kilos_procesados": kilos_totales_ia}).execute()
+                        db.table("bitacora").insert({"accion": "Preparación IA", "detalle": detalle, "gasto_total": costo_lote_ia, "kilos_procesados": kilos_totales_ia}).execute()
 
                         st.session_state['mezcla'] = {
                             "proteina": sol['proteina_log'], "energia": sol['energia_log'], "fibra": 10.0,
@@ -466,4 +493,3 @@ def render_laboratory_page(ctx) -> None:
                         st.success(f"✅ ¡Gastos Registrados! Ya puedes ir al Módulo 4: Proyecciones Financieras.")
                     except Exception as e:
                         st.error(f"⚠️ Error al registrar en la bóveda: {e}")
-
