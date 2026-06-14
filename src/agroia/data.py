@@ -2,15 +2,10 @@ import json
 from pathlib import Path
 
 import streamlit as st
-from supabase import create_client, Client
 
+from agroia.data_backend import DatabaseClient
 
 RESOURCE_DIR = Path(__file__).resolve().parents[2] / "resources"
-
-
-@st.cache_resource
-def init_connection(url: str, key: str) -> Client:
-    return create_client(url, key)
 
 
 def load_botiquin() -> dict:
@@ -18,16 +13,19 @@ def load_botiquin() -> dict:
         with (RESOURCE_DIR / "botiquin.json").open(encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        st.error("⚠️ Falta el archivo botiquin.json. El módulo veterinario no funcionará.")
+        st.error(
+            "⚠️ Falta el archivo botiquin.json. "
+            "El módulo veterinario no funcionará."
+        )
         return {"desparasitantes": {}, "vacunas": {}}
 
 
-def load_base_datos(supabase: Client) -> dict:
+def load_base_datos(db: DatabaseClient) -> dict:
     try:
         with (RESOURCE_DIR / "bd_agro_v2.json").open(encoding="utf-8") as archivo:
             base_fusionada = json.load(archivo)
 
-        respuesta = supabase.table("inventario").select("*").execute()
+        respuesta = db.table("inventario").select("*").execute()
 
         for fila in respuesta.data:
             insumo = fila["insumo"]
@@ -43,7 +41,7 @@ def load_base_datos(supabase: Client) -> dict:
 
 
 def registrar_bitacora(
-    supabase: Client,
+    db: DatabaseClient,
     accion: str,
     detalle: str,
     gasto_total: float = 0.0,
@@ -57,7 +55,7 @@ def registrar_bitacora(
             "kilos_procesados": float(kilos_procesados),
         }
 
-        supabase.table("bitacora").insert(datos).execute()
+        db.table("bitacora").insert(datos).execute()
         return True
 
     except Exception as e:

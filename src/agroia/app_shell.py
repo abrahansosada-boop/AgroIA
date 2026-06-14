@@ -1,48 +1,50 @@
 import hmac
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import streamlit as st
-from supabase import Client
 
-from agroia.config import ConfigurationError, load_config
-from agroia.data import (
-    init_connection,
-    load_base_datos,
-    load_botiquin,
-)
+from agroia.config import AppConfig, ConfigurationError, DataBackend, load_config
+from agroia.data import load_base_datos, load_botiquin
+from agroia.data_backend import DatabaseClient, create_database_client
 from agroia.ui.main_menu import render_main_menu
 
 
 @dataclass
 class AppContext:
-    supabase: Client
+    db: DatabaseClient
+    data_backend: DataBackend
     botiquin: dict
     base_datos: dict
     es_administrador: bool
     opcion: str
 
 
-def bootstrap_app() -> AppContext:
+def bootstrap_app(argv: Sequence[str] = ()) -> AppContext:
     configure_page()
 
-    app_config = load_app_config()
+    app_config = load_app_config(argv)
     require_login(app_config)
 
     st.title("🌾 Sistema de Inteligencia Agropecuaria v4.0")
 
-    supabase = init_connection(
-        app_config.supabase_url,
-        app_config.supabase_key,
-    )
+    if app_config.data_backend is DataBackend.DEMO:
+        st.warning(
+            "Modo demo activo: estás usando datos locales temporales. "
+            "Los cambios no se guardan en Supabase."
+        )
+
+    db = create_database_client(app_config, st.session_state)
 
     botiquin = load_botiquin()
-    base_datos = load_base_datos(supabase)
+    base_datos = load_base_datos(db)
 
     es_administrador = render_access_level(app_config)
     opcion = render_main_menu(es_administrador)
 
     return AppContext(
-        supabase=supabase,
+        db=db,
+        data_backend=app_config.data_backend,
         botiquin=botiquin,
         base_datos=base_datos,
         es_administrador=es_administrador,
@@ -58,18 +60,15 @@ def configure_page() -> None:
     )
 
 
-def load_app_config():
+def load_app_config(argv: Sequence[str]) -> AppConfig:
     try:
-        return load_config(secrets=st.secrets)
+        return load_config(secrets=st.secrets, argv=argv)
     except ConfigurationError as error:
-        st.error(
-            "Configuración incompleta o inválida. Define estas claves: "
-            + ", ".join(error.invalid_keys)
-        )
+        st.error(f"Configuración incompleta o inválida: {error}")
         st.stop()
 
 
-def require_login(app_config) -> None:
+def require_login(app_config: AppConfig) -> None:
     if "autenticado" not in st.session_state:
         st.session_state["autenticado"] = False
 
@@ -84,7 +83,7 @@ def require_login(app_config) -> None:
     with col2:
         password = st.text_input("Contraseña Maestra:", type="password")
 
-        if st.button("🚪 Entrar al Sistema", use_container_width=True):
+        if st.button("🚪 Entrar al Sistema", width="stretch"):
             if hmac.compare_digest(password, app_config.app_password):
                 st.session_state["autenticado"] = True
                 st.rerun()
@@ -94,7 +93,7 @@ def require_login(app_config) -> None:
     st.stop()
 
 
-def render_access_level(app_config) -> bool:
+def render_access_level(app_config: AppConfig) -> bool:
     st.sidebar.divider()
     st.sidebar.subheader("🔐 Nivel de Acceso")
 

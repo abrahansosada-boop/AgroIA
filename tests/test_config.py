@@ -1,6 +1,6 @@
 import pytest
 
-from agroia.config import ConfigurationError, load_config
+from agroia.config import ConfigurationError, DataBackend, load_config
 
 VALID_ENVIRONMENT = {
     "SUPABASE_URL": "https://example.supabase.invalid",
@@ -18,6 +18,7 @@ class MissingSecretStore(dict[str, str]):
 def test_loads_configuration_from_environment() -> None:
     config = load_config(environ=VALID_ENVIRONMENT, secrets={})
 
+    assert config.data_backend is DataBackend.SUPABASE
     assert config.supabase_url == VALID_ENVIRONMENT["SUPABASE_URL"]
     assert config.supabase_key == VALID_ENVIRONMENT["SUPABASE_KEY"]
     assert config.app_password == VALID_ENVIRONMENT["APP_PASSWORD"]
@@ -27,6 +28,7 @@ def test_loads_configuration_from_environment() -> None:
 def test_loads_configuration_from_streamlit_secrets() -> None:
     config = load_config(environ={}, secrets=VALID_ENVIRONMENT)
 
+    assert config.data_backend is DataBackend.SUPABASE
     assert config.supabase_url == VALID_ENVIRONMENT["SUPABASE_URL"]
     assert config.supabase_key == VALID_ENVIRONMENT["SUPABASE_KEY"]
     assert config.app_password == VALID_ENVIRONMENT["APP_PASSWORD"]
@@ -106,3 +108,80 @@ def test_handles_missing_streamlit_secrets_file() -> None:
         "APP_PASSWORD",
         "ADMIN_PIN",
     )
+
+
+@pytest.mark.parametrize(
+    ("environment", "argv"),
+    [
+        ({"AGROIA_DATA_BACKEND": "demo"}, ()),
+        ({}, ("--demo",)),
+        ({"AGROIA_DATA_BACKEND": "demo"}, ("--demo",)),
+    ],
+)
+def test_demo_mode_does_not_require_supabase_credentials(
+    environment: dict[str, str],
+    argv: tuple[str, ...],
+) -> None:
+    config = load_config(
+        environ={
+            **environment,
+            "APP_PASSWORD": "fake-app-password",
+            "ADMIN_PIN": "0000",
+        },
+        secrets={},
+        argv=argv,
+    )
+
+    assert config.data_backend is DataBackend.DEMO
+    assert config.supabase_url is None
+    assert config.supabase_key is None
+
+
+def test_explicit_supabase_backend_uses_supabase() -> None:
+    config = load_config(
+        environ={
+            **VALID_ENVIRONMENT,
+            "AGROIA_DATA_BACKEND": "supabase",
+        },
+        secrets={},
+    )
+
+    assert config.data_backend is DataBackend.SUPABASE
+
+
+def test_demo_mode_still_requires_login_configuration() -> None:
+    with pytest.raises(ConfigurationError) as error:
+        load_config(
+            environ={"AGROIA_DATA_BACKEND": "demo"},
+            secrets={},
+        )
+
+    assert error.value.invalid_keys == ("APP_PASSWORD", "ADMIN_PIN")
+
+
+def test_rejects_invalid_backend_value() -> None:
+    with pytest.raises(ConfigurationError) as error:
+        load_config(
+            environ={
+                **VALID_ENVIRONMENT,
+                "AGROIA_DATA_BACKEND": "sqlite",
+            },
+            secrets={},
+        )
+
+    assert error.value.invalid_keys == ("AGROIA_DATA_BACKEND",)
+
+
+def test_rejects_conflicting_explicit_backend_selectors() -> None:
+    with pytest.raises(ConfigurationError) as error:
+        load_config(
+            environ={
+                **VALID_ENVIRONMENT,
+                "AGROIA_DATA_BACKEND": "supabase",
+            },
+            secrets={},
+            argv=("--demo",),
+        )
+
+    assert error.value.invalid_keys == ("AGROIA_DATA_BACKEND", "--demo")
+    assert "cannot be combined" in str(error.value)

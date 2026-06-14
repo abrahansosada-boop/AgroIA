@@ -4,7 +4,7 @@ from agroia.data import registrar_bitacora
 
 
 def render_mortality_page(ctx) -> None:
-    supabase = ctx.supabase
+    db = ctx.db
     st.header("🪦 Gestor de Mortandad y Pérdidas")
     st.markdown("Registra las bajas del rebaño para dar de baja las 'bocas que alimentar' y calcular la fuga de capital.")
 
@@ -30,7 +30,7 @@ def render_mortality_page(ctx) -> None:
             "🟢 No (Murieron antes de gastar en ellos)"
         ])
 
-    if st.button("🚨 Registrar Baja Oficial", use_container_width=True):
+    if st.button("🚨 Registrar Baja Oficial", width="stretch"):
         perdida_medica = 0
         
         if "Sí" in vacunados:
@@ -42,7 +42,7 @@ def render_mortality_page(ctx) -> None:
             perdida_medica = bajas * costo_unitario
 
         detalle = f"Baja de {bajas} cabezas por {causa}. Fuga de capital médico: ${perdida_medica:.2f}"
-        registrar_bitacora(supabase, "Baja por Mortandad", detalle)
+        registrar_bitacora(db, "Baja por Mortandad", detalle)
         
         if 'fuga_capital' not in st.session_state:
             st.session_state['fuga_capital'] = 0.0

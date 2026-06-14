@@ -3,7 +3,7 @@ import streamlit as st
 
 
 def render_dashboard_page(ctx) -> None:
-    supabase = ctx.supabase
+    db = ctx.db
     st.title("🚜 AgroIA: Centro de Mando")
     st.markdown("Bienvenido al resumen operativo en tiempo real del rancho.")
     
@@ -13,7 +13,7 @@ def render_dashboard_page(ctx) -> None:
     
     try:
 
-        respuesta_b = supabase.table("bitacora").select("gasto_total, kilos_procesados").execute()
+        respuesta_b = db.table("bitacora").select("gasto_total, kilos_procesados").execute()
         if respuesta_b.data:
             df_finanzas = pd.DataFrame(respuesta_b.data)
             
@@ -48,9 +48,16 @@ def render_dashboard_page(ctx) -> None:
 
     with col_btn1:
         st.info("⚖️ Calcula y optimiza tu revoltura (Manual o IA).")
-        st.button("Ir al Súper-Laboratorio", use_container_width=True, on_click=saltar_a_lab)
+        st.button(
+            "Ir al Súper-Laboratorio",
+            width="stretch",
+            on_click=saltar_a_lab,
+        )
 
     with col_btn2:
         st.success("📦 Revisa y actualiza tus existencias.")
-        st.button("Ir a Inventario de Insumos", use_container_width=True, on_click=saltar_a_inv)
-
+        st.button(
+            "Ir a Inventario de Insumos",
+            width="stretch",
+            on_click=saltar_a_inv,
+        )

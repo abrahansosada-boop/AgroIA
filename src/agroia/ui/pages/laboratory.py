@@ -4,7 +4,7 @@ import streamlit as st
 
 
 def render_laboratory_page(ctx) -> None:
-    supabase = ctx.supabase
+    db = ctx.db
     base_datos = ctx.base_datos
     botiquin = ctx.botiquin
     st.header("🧪 Súper-Laboratorio y Centro de Mando")
@@ -20,10 +20,10 @@ def render_laboratory_page(ctx) -> None:
         col_act, col_ref = st.columns([3, 1])
         
         with col_ref:
-            st.button("🔄 Actualizar Lista", use_container_width=True)
+            st.button("🔄 Actualizar Lista", width="stretch")
 
         try:
-            respuesta = supabase.table("perfiles_lotes").select("*").execute()
+            respuesta = db.table("perfiles_lotes").select("*").execute()
             
             lotes_guardados = respuesta.data
             
@@ -33,7 +33,7 @@ def render_laboratory_page(ctx) -> None:
                 with col_act:
                     lote_elegido = st.selectbox("Selecciona el lote con el que trabajarás hoy:", nombres_lotes)
                 
-                if st.button("⚡ Activar Lote para Formulación", use_container_width=True):
+                if st.button("⚡ Activar Lote para Formulación", width="stretch"):
                     datos_lote = next(item for item in lotes_guardados if item["nombre_lote"] == lote_elegido)
                     
                     st.session_state['perfil'] = {
@@ -184,7 +184,7 @@ def render_laboratory_page(ctx) -> None:
 
             if nombre_nuevo_lote:
                 try:
-                    supabase.table("perfiles_lotes").insert({
+                    db.table("perfiles_lotes").insert({
                         "nombre_lote": nombre_nuevo_lote,
                         "raza": raza_sel,
                         "genero": genero,
@@ -297,7 +297,7 @@ def render_laboratory_page(ctx) -> None:
                         })
 
                     df_desglose = pd.DataFrame(datos_desglose)
-                    st.dataframe(df_desglose, use_container_width=True)
+                    st.dataframe(df_desglose, width="stretch")
                     
                     if prot_acum > 18.0: st.warning("⚠️ RIESGO: Nivel de proteína muy alto. Podría causar estrés renal.")
                     elif fibr_acum < 10.0: st.warning("⚠️ RIESGO: Fibra muy baja. Peligro inminente de acidosis ruminal.")
@@ -310,11 +310,14 @@ def render_laboratory_page(ctx) -> None:
 
             if 'mezcla_lista' in st.session_state:
                 st.divider()
-                if st.button("💾 Procesar Lote Manual y Registrar Gasto", use_container_width=True):
+                if st.button(
+                    "💾 Procesar Lote Manual y Registrar Gasto",
+                    width="stretch",
+                ):
                     m = st.session_state['mezcla_lista']
                     detalle_txt = f"Lote MANUAL de {m['total_kilos']}kg al {m['proteina']:.1f}% de proteína."
                     try:
-                        supabase.table("bitacora").insert({"accion": "Preparación Manual", "detalle": detalle_txt, "gasto_total": m['costo_total'], "kilos_procesados": m['total_kilos']}).execute()
+                        db.table("bitacora").insert({"accion": "Preparación Manual", "detalle": detalle_txt, "gasto_total": m['costo_total'], "kilos_procesados": m['total_kilos']}).execute()
                         st.success(f"✅ ¡Dinero auditado! Se registraron ${m['costo_total']:,.2f} MXN en la Nube.")
                         del st.session_state['mezcla_lista']
                     except Exception as e:
@@ -359,7 +362,15 @@ def render_laboratory_page(ctx) -> None:
                         "Insumo": ins.title().replace("_", " "), "Costo por Punto": f"${costo_por_punto:.2f}",
                         "Proteína Total": f"{datos['proteina_pct']}%", "Costo x Kg": f"${datos['costo_kg']:.2f}"
                     })
-            st.dataframe(sorted(analisis_prot, key=lambda x: float(x["Costo por Punto"].replace('$', ''))), use_container_width=True)
+            st.dataframe(
+                sorted(
+                    analisis_prot,
+                    key=lambda x: float(
+                        x["Costo por Punto"].replace("$", "")
+                    ),
+                ),
+                width="stretch",
+            )
             st.divider()
 
             st.markdown("### 🎛️ Motor de Optimización Lineal")
@@ -427,7 +438,7 @@ def render_laboratory_page(ctx) -> None:
 
                 st.success("✅ ¡Fórmula óptima encontrada!")
                 st.title(f"💰 Costo final proyectado: ${sol['costo_kg']:.2f} MXN / kg")
-                st.dataframe(sol['df'], use_container_width=True, hide_index=True)
+                st.dataframe(sol['df'], width="stretch", hide_index=True)
 
                 st.divider()
                 st.markdown("### 🚜 Auto-Formulador de Lote (Revolvedora IA)")
@@ -438,7 +449,10 @@ def render_laboratory_page(ctx) -> None:
                     with c_lote1: num_cabezas = st.number_input("Número de Animales a alimentar:", min_value=1, value=50, step=5)
                     with c_lote2: dias_dieta = st.number_input("¿Para cuántos días vas a preparar?", min_value=1, value=3, step=1)
                     
-                    btn_tolva = st.form_submit_button("🤖 Generar Receta de Tolva y Pagar Lote", use_container_width=True)
+                    btn_tolva = st.form_submit_button(
+                        "🤖 Generar Receta de Tolva y Pagar Lote",
+                        width="stretch",
+                    )
 
                 if btn_tolva:
                     kilos_totales_ia = num_cabezas * consumo_real * dias_dieta
@@ -451,12 +465,16 @@ def render_laboratory_page(ctx) -> None:
                         kg_insumo_tolva = (row["Kilos por 100kg"] / 100) * kilos_totales_ia
                         receta_tolva.append({"Insumo": row["Insumo"], "Kilos a echar a la Tolva": round(kg_insumo_tolva, 1)})
 
-                    st.dataframe(pd.DataFrame(receta_tolva), use_container_width=True, hide_index=True)
+                    st.dataframe(
+                        pd.DataFrame(receta_tolva),
+                        width="stretch",
+                        hide_index=True,
+                    )
                     st.metric("💰 Costo Total del Lote", f"${costo_lote_ia:,.2f} MXN")
 
                     try:
                         detalle = f"Lote IA Tolva: {kilos_totales_ia:,.0f}kg al {sol['proteina_log']}% de prot."
-                        supabase.table("bitacora").insert({"accion": "Preparación IA", "detalle": detalle, "gasto_total": costo_lote_ia, "kilos_procesados": kilos_totales_ia}).execute()
+                        db.table("bitacora").insert({"accion": "Preparación IA", "detalle": detalle, "gasto_total": costo_lote_ia, "kilos_procesados": kilos_totales_ia}).execute()
 
                         st.session_state['mezcla'] = {
                             "proteina": sol['proteina_log'], "energia": sol['energia_log'], "fibra": 10.0,
@@ -466,4 +484,3 @@ def render_laboratory_page(ctx) -> None:
                         st.success(f"✅ ¡Gastos Registrados! Ya puedes ir al Módulo 4: Proyecciones Financieras.")
                     except Exception as e:
                         st.error(f"⚠️ Error al registrar en la bóveda: {e}")
-
