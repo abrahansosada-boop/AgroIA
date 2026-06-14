@@ -1,6 +1,12 @@
 import pandas as pd
-import pulp
 import streamlit as st
+
+from agroia.domain.livestock import (
+    calcular_dosis_sanitaria,
+    calcular_mezcla,
+    optimizar_dieta,
+    validar_inventario_para_receta,
+)
 
 
 def render_laboratory_page(ctx) -> None:
@@ -107,12 +113,13 @@ def render_laboratory_page(ctx) -> None:
             else:
                 datos_vac = next(d for d in botiquin["vacunas"].values() if d["nombre"] == vac_sel)
 
-            dosis_exacta_ml = peso * datos_desp["dosis_ml_por_kg"]
-            costo_desp = dosis_exacta_ml * datos_desp["costo_por_ml"]
-            costo_vac = datos_vac["costo_por_dosis"]
-            
-            costo_salud_total = costo_desp + costo_vac
-            retiro_dias = max(datos_desp["tiempo_retiro_dias"], datos_vac["tiempo_retiro_dias"])
+            dosis = calcular_dosis_sanitaria(peso, datos_desp, datos_vac)
+            dosis_exacta_ml = dosis["dosis_desparasitante_ml"]
+            dosis_vacuna_ml = dosis["dosis_vacuna_ml"]
+            costo_desp = dosis["costo_desparasitante"]
+            costo_vac = dosis["costo_vacuna"]
+            costo_salud_total = dosis["costo_total"]
+            retiro_dias = int(dosis["retiro_dias"])
 
             st.divider()
             
@@ -172,7 +179,7 @@ def render_laboratory_page(ctx) -> None:
                 
                 col_r1, col_r2, col_r3 = st.columns(3)
                 col_r1.metric("Desparasitante", f"{dosis_exacta_ml:.1f} ml", f"${costo_desp:.2f} MXN", delta_color="off")
-                col_r2.metric("Vacuna Base", f"{datos_vac['dosis_ml_fija']:.1f} ml", f"${costo_vac:.2f} MXN", delta_color="off")
+                col_r2.metric("Vacuna Base", f"{dosis_vacuna_ml:.1f} ml", f"${costo_vac:.2f} MXN", delta_color="off")
                 col_r3.metric("Inversión Sanitaria", f"${costo_salud_total:.2f} MXN")
 
                 if retiro_dias > 0:
@@ -267,10 +274,26 @@ def render_laboratory_page(ctx) -> None:
 
             if st.button("⚖️ AUDITAR MEZCLA MANUAL"):
                 if total_kilos_mezcla > 0:
-                    prot_acum = sum((item["kilos"] * item["datos"]["proteina_pct"]) for item in mezcla_final) / total_kilos_mezcla
-                    ener_acum = sum((item["kilos"] * item["datos"]["energia_mcal"]) for item in mezcla_final) / total_kilos_mezcla
-                    fibr_acum = sum((item["kilos"] * item["datos"]["fibra_pct"]) for item in mezcla_final) / total_kilos_mezcla
-                    costo_tot = sum((item["kilos"] * item["datos"]["costo_kg"]) for item in mezcla_final)
+                    kilos_por_insumo = {
+                        item["nombre"]: item["kilos"]
+                        for item in mezcla_final
+                        if item["kilos"] > 0
+                    }
+                    errores_inventario = validar_inventario_para_receta(
+                        base_datos,
+                        kilos_por_insumo,
+                    )
+                    if errores_inventario:
+                        st.warning(
+                            "Inventario insuficiente para uso real: "
+                            + "; ".join(errores_inventario)
+                        )
+
+                    mezcla = calcular_mezcla(base_datos, kilos_por_insumo)
+                    prot_acum = mezcla["proteina"]
+                    ener_acum = mezcla["energia"]
+                    fibr_acum = mezcla["fibra"]
+                    costo_tot = mezcla["costo_total"]
 
                     st.session_state['mezcla'] = {
                         "proteina": prot_acum, "energia": ener_acum, "fibra": fibr_acum,
@@ -389,49 +412,35 @@ def render_laboratory_page(ctx) -> None:
 
 
             if st.button("🧠 GENERAR FÓRMULA ÓPTIMA"):
-                prob = pulp.LpProblem("Dieta_Barata", pulp.LpMinimize)
-                insumos = list(base_datos.keys())
-                # TODO: Migrate PuLP variable creation / CBC solver setup before upgrading to PuLP 4.
-                x = pulp.LpVariable.dicts("Ingrediente", insumos, lowBound=0)
+                solucion = optimizar_dieta(
+                    base_datos,
+                    req_proteina=req_proteina,
+                    req_energia=req_energia,
+                    considerar_stock=True,
+                )
 
-                prob += pulp.lpSum([x[i] * base_datos[i]["costo_kg"] for i in insumos]), "Costo"
-                prob += pulp.lpSum([x[i] for i in insumos]) == 100, "Peso_100"
-                prob += pulp.lpSum([x[i] * base_datos[i]["proteina_pct"] for i in insumos]) >= req_proteina * 100, "Req_Prot"
-                prob += pulp.lpSum([x[i] * base_datos[i]["energia_mcal"] for i in insumos]) >= req_energia * 100, "Req_Ener"
-
-                for i in insumos:
-                    if "max_pct" in base_datos[i]:
-                        prob += x[i] <= base_datos[i]["max_pct"], f"Max_{i}"
-
-                toxicos = [i for i in ["urea_agricola", "pollinaza", "harina_pescado"] if i in insumos]
-                if "urea_agricola" in toxicos: prob += x["urea_agricola"] <= 0.5, "Tope_Urea"
-                if "pollinaza" in toxicos: prob += x["pollinaza"] <= 12.0, "Tope_Pollinaza"
-                if "harina_pescado" in toxicos: prob += x["harina_pescado"] <= 4.0, "Tope_Pescado"
-                if len(toxicos) >= 2: prob += pulp.lpSum([x[i] for i in toxicos]) <= 11.0, "Colchon_Paranoia_Palatabilidad"
-
-                prob.solve()
-
-                if pulp.LpStatus[prob.status] == "Optimal":
+                if solucion.estado == "Optimal":
                     resultados = []
-                    costo_cien_kg = 0
-                    for i in insumos:
-                        if x[i].varValue > 0.01:
-                            costo_ing = x[i].varValue * base_datos[i]["costo_kg"]
-                            costo_cien_kg += costo_ing
-                            resultados.append({
-                                "Insumo": i.upper(), "Kilos por 100kg": round(x[i].varValue, 2),
-                                "Costo ($)": round(costo_ing, 2)
-                            })
+                    for insumo, kilos in solucion.ingredientes.items():
+                        costo_ing = kilos * base_datos[insumo]["costo_kg"]
+                        resultados.append({
+                            "Insumo": insumo.upper(),
+                            "Kilos por 100kg": round(kilos, 2),
+                            "Costo ($)": round(costo_ing, 2),
+                        })
 
                     st.session_state['solucion_ia'] = {
-                        "df": pd.DataFrame(resultados), "costo_kg": costo_cien_kg / 100,
-                        "detalles_ia": { "ingredientes": [i for i in insumos if x[i].varValue > 0.01], "kilos": {i: float(x[i].varValue) for i in insumos if x[i].varValue > 0.01} },
+                        "df": pd.DataFrame(resultados), "costo_kg": solucion.costo_kg,
+                        "detalles_ia": {
+                            "ingredientes": list(solucion.ingredientes.keys()),
+                            "kilos": solucion.ingredientes,
+                        },
                         "proteina_log": req_proteina, "energia_log": req_energia
                     }
                     st.balloons()
                 else:
                     st.session_state['solucion_ia'] = None
-                    st.error("❌ Misión Imposible. Faltan ingredientes para esta meta.")
+                    st.error(f"❌ Misión Imposible. {solucion.mensaje}")
 
             if 'solucion_ia' in st.session_state and st.session_state['solucion_ia'] is not None:
                 sol = st.session_state['solucion_ia']

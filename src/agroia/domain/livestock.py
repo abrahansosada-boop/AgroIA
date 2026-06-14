@@ -49,7 +49,9 @@ def calcular_mezcla(
         fibra += kilos * float(datos.get("fibra_pct", 0.0))
         costo = kilos * float(datos.get("costo_kg", 0.0))
         costo_total += costo
-        detalle.append({"nombre": insumo, "kilos": kilos, "datos": datos, "costo": costo})
+        detalle.append(
+            {"nombre": insumo, "kilos": kilos, "datos": datos, "costo": costo}
+        )
 
     return {
         "proteina": proteina / total_kilos,
@@ -76,7 +78,8 @@ def validar_inventario_para_receta(
             errores.append(f"{insumo}: stock cero")
         elif float(kilos_requeridos) > stock:
             errores.append(
-                f"{insumo}: requiere {float(kilos_requeridos):.2f} kg y solo hay {stock:.2f} kg"
+                f"{insumo}: requiere {float(kilos_requeridos):.2f} kg "
+                f"y solo hay {stock:.2f} kg"
             )
     return errores
 
@@ -154,7 +157,11 @@ def optimizar_dieta(
                 f"Stock_{insumo}",
             )
 
-    toxicos = [i for i in ["urea_agricola", "pollinaza", "harina_pescado"] if i in insumos]
+    toxicos = [
+        i
+        for i in ["urea_agricola", "pollinaza", "harina_pescado"]
+        if i in insumos
+    ]
     if "urea_agricola" in toxicos:
         problema += variables["urea_agricola"] <= 0.5, "Tope_Urea"
     if "pollinaza" in toxicos:
@@ -175,7 +182,10 @@ def optimizar_dieta(
             costo_kg=0.0,
             costo_total_100kg=0.0,
             estado=estado,
-            mensaje="No existe una mezcla viable con el inventario y restricciones actuales.",
+            mensaje=(
+                "No existe una mezcla viable con el inventario "
+                "y restricciones actuales."
+            ),
         )
 
     receta = {

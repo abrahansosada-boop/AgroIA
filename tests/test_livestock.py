@@ -1,13 +1,12 @@
 import pytest
 
-from motores.calculos_zootecnicos import (
+from agroia.domain.livestock import (
     CalculoZootecnicoError,
     calcular_dosis_sanitaria,
     calcular_mezcla,
     optimizar_dieta,
     validar_inventario_para_receta,
 )
-
 
 BASE_DATOS = {
     "maiz": {
