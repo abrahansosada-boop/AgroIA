@@ -33,3 +33,38 @@ def calcular_protocolo_sanitario(peso: float, datos_desp: dict = None, datos_vac
         "apto_para_venta": apto_venta,
         "mensaje_retiro": mensaje_retiro
     }
+
+def calcular_meta_ganancia(proteina_mezcla: float) -> float:
+    """Calcula la meta sugerida de ganancia diaria basada en la proteína de la dieta."""
+    return round(0.8 + ((proteina_mezcla - 14.0) * 0.05), 2)
+
+
+def evaluar_rendimiento_pesada(peso_anterior: float, peso_actual: float, dias: int, meta_ia: float) -> dict:
+    """Calcula la ganancia diaria de peso (GDP) y evalúa el desempeño del lote o animal."""
+    if dias <= 0:
+        return {"exito": False, "error": "Los días transcurridos deben ser mayores a cero."}
+    if peso_actual <= peso_anterior:
+        return {"exito": False, "error": "El peso actual no puede ser menor o igual al anterior. Revisa los datos."}
+
+    ganancia_total = peso_actual - peso_anterior
+    gdp_real = ganancia_total / dias
+    diferencia_meta = gdp_real - meta_ia
+
+    if gdp_real >= meta_ia:
+        estado = "EXCELENTE"
+        mensaje = "El desempeño supera o iguala la proyección de la dieta. ¡Buen trabajo!"
+    elif gdp_real >= meta_ia * 0.8:
+        estado = "ALERTA"
+        mensaje = "Están ganando peso, pero un poco por debajo de la meta. Revisa el consumo en comederos."
+    else:
+        estado = "PELIGRO"
+        mensaje = "Los animales están estancados. Revisa sanidad, estrés por clima o corrige la dieta."
+
+    return {
+        "exito": True,
+        "ganancia_total": ganancia_total,
+        "gdp_real": gdp_real,
+        "diferencia_meta": diferencia_meta,
+        "estado": estado,
+        "mensaje": mensaje
+    }
