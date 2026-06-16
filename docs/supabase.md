@@ -47,6 +47,7 @@ Registra movimientos operativos, compras, mermas y formulaciones.
 | --- | --- | --- |
 | `id` | `bigint generated always as identity primary key` | Identificador interno |
 | `tenant_id` | `text not null references tenants(id)` | Cliente/granja propietaria |
+| `lote_id` | `bigint` | Lote asociado cuando aplique |
 | `fecha` | `timestamptz default now()` | Fecha para ordenar historial |
 | `accion` | `text not null` | Tipo de movimiento |
 | `detalle` | `text not null` | Descripcion legible |
@@ -105,6 +106,7 @@ create table if not exists inventario (
 create table if not exists bitacora (
   id bigint generated always as identity primary key,
   tenant_id text not null references tenants(id),
+  lote_id bigint,
   fecha timestamptz default now(),
   accion text not null,
   detalle text not null,

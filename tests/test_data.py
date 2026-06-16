@@ -25,3 +25,25 @@ def test_registrar_bitacora_uses_supplied_client() -> None:
     )
     db.table.return_value.insert.return_value.execute.assert_called_once_with()
     assert result is True
+
+
+def test_registrar_bitacora_includes_lote_id_when_supplied() -> None:
+    db = MagicMock()
+
+    result = registrar_bitacora(
+        db,
+        "Control de Peso",
+        "Pesada registrada",
+        lote_id=42,
+    )
+
+    db.table.return_value.insert.assert_called_once_with(
+        {
+            "accion": "Control de Peso",
+            "detalle": "Pesada registrada",
+            "gasto_total": 0.0,
+            "kilos_procesados": 0.0,
+            "lote_id": 42,
+        }
+    )
+    assert result is True

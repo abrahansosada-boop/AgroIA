@@ -1,6 +1,7 @@
 import streamlit as st
 
 from agroia.data import registrar_bitacora
+from agroia.lots import get_active_lot_id, get_active_lot_name
 
 
 def render_weight_page(ctx) -> None:
@@ -22,10 +23,11 @@ def render_weight_page(ctx) -> None:
         col_b1, col_b2 = st.columns(2)
 
     with col_b1:
+        active_lot_name = get_active_lot_name(st.session_state)
         if "Individual" in tipo_pesaje:
             id_animal = st.text_input("ID o Número de Arete", placeholder="Ej. Becerro 405")
         else:
-            id_animal = st.text_input("Nombre del Lote", placeholder="Ej. Corral Norte")
+            id_animal = st.text_input("Nombre del Lote", value=active_lot_name or "", placeholder="Ej. Corral Norte")
 
         peso_anterior = st.number_input("Peso Anterior (kg)", min_value=1.0, value=180.0, step=10.0)
         peso_actual = st.number_input("Peso Actual (kg)", min_value=1.0, value=200.0, step=10.0)
@@ -63,7 +65,12 @@ def render_weight_page(ctx) -> None:
                 st.error("❌ **PELIGRO:** Los animales están estancados. Revisa sanidad, estrés por clima o corrige la dieta (Módulo 3).")
 
             detalle = f"Pesada {id_animal}: {peso_actual}kg. GDP: {gdp_real:.2f}kg/día (Meta: {meta_ia})."
-            registrar_bitacora(db, "Control de Peso", detalle)
+            registrar_bitacora(
+                db,
+                "Control de Peso",
+                detalle,
+                lote_id=get_active_lot_id(st.session_state),
+            )
             if 'perfil' in st.session_state:
                 st.session_state['perfil']['peso'] = peso_actual
                 st.success(f"🔄 ¡Sistema Nervioso Activo! El peso base para tus finanzas se actualizó automáticamente a {peso_actual} kg.")

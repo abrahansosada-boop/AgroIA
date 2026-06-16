@@ -46,6 +46,7 @@ def registrar_bitacora(
     detalle: str,
     gasto_total: float = 0.0,
     kilos_procesados: float = 0.0,
+    lote_id: object | None = None,
 ) -> bool:
     try:
         datos = {
@@ -54,6 +55,8 @@ def registrar_bitacora(
             "gasto_total": float(gasto_total),
             "kilos_procesados": float(kilos_procesados),
         }
+        if lote_id is not None:
+            datos["lote_id"] = lote_id
 
         db.table("bitacora").insert(datos).execute()
         return True

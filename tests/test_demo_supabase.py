@@ -52,6 +52,26 @@ def test_inserts_rows_with_timestamp_and_orders_them() -> None:
     assert ordered.data[0]["accion"] == "Nueva"
 
 
+def test_inserted_lotes_get_demo_ids() -> None:
+    client = DemoSupabaseClient()
+
+    inserted = client.table("perfiles_lotes").insert(
+        {
+            "tenant_id": DEMO_TENANT_ID,
+            "nombre_lote": "Corral sur",
+            "raza": "angus",
+            "genero": "Macho",
+            "proposito": "Carne",
+            "edad": 10,
+            "peso_promedio": 260,
+            "clima_local": 28,
+            "costo_salud": 0,
+        }
+    ).execute()
+
+    assert inserted.data[0]["id"] == "lote-demo-2"
+
+
 def test_results_are_defensive_copies() -> None:
     client = DemoSupabaseClient()
 

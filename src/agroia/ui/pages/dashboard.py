@@ -39,10 +39,10 @@ def render_dashboard_page(ctx) -> None:
     st.subheader("⚡ Acciones Rápidas")
 
     def saltar_a_lab():
-        st.session_state["modulo_actual"] = "🧪 Super Laboratorio"
+        st.session_state["modulo_actual"] = "Super Laboratorio"
 
     def saltar_a_inv():
-        st.session_state["modulo_actual"] = "📦 Inventario de Insumos"
+        st.session_state["modulo_actual"] = "Inventario de Insumos"
 
     col_btn1, col_btn2 = st.columns(2)
 

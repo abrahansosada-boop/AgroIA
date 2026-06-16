@@ -68,7 +68,8 @@ class DemoResult:
 
 
 class DemoTableQuery:
-    def __init__(self, table_rows: list[dict[str, Any]]) -> None:
+    def __init__(self, table_name: str, table_rows: list[dict[str, Any]]) -> None:
+        self._table_name = table_name
         self._rows = table_rows
         self._operation = "select"
         self._payload: dict[str, Any] | None = None
@@ -102,6 +103,8 @@ class DemoTableQuery:
     def execute(self) -> DemoResult:
         if self._operation == "insert":
             row = dict(self._payload or {})
+            if self._table_name == "perfiles_lotes":
+                row.setdefault("id", f"lote-demo-{len(self._rows) + 1}")
             row.setdefault("fecha", datetime.now().isoformat(timespec="seconds"))
             self._rows.append(row)
             return DemoResult([deepcopy(row)])
@@ -140,4 +143,4 @@ class DemoSupabaseClient:
 
     def table(self, name: str) -> DemoTableQuery:
         self._tables.setdefault(name, [])
-        return DemoTableQuery(self._tables[name])
+        return DemoTableQuery(name, self._tables[name])

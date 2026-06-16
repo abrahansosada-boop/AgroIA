@@ -3,6 +3,7 @@ from datetime import datetime
 import streamlit as st
 
 from agroia.data import registrar_bitacora
+from agroia.lots import get_active_lot_id
 
 
 def render_financial_projection_page(ctx) -> None:
@@ -122,6 +123,7 @@ def render_financial_projection_page(ctx) -> None:
                     f"Raza: {perf['raza'].upper()} | "
                     f"Margen: ${round(margen_por_kilo, 2)}/kg | "
                     f"Costo Prod: ${round(costo_kg_carne, 2)}/kg",
+                    lote_id=get_active_lot_id(st.session_state),
                 )
                 
                 st.success("✅ ¡Proyección guardada en la Caja Negra de la nube!")
