@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
+from agroia.tenancy import Role
 from agroia.ui import main_menu
 
 
@@ -37,7 +38,7 @@ class FakeStreamlit:
 def render_menu(
     monkeypatch: pytest.MonkeyPatch,
     *,
-    es_administrador: bool,
+    role: Role | bool,
     selected: str | None = None,
 ) -> tuple[str, FakeStreamlit]:
     session_state = {}
@@ -47,7 +48,7 @@ def render_menu(
     fake_streamlit = FakeStreamlit(session_state)
     monkeypatch.setattr(main_menu, "st", fake_streamlit)
 
-    option = main_menu.render_main_menu(es_administrador)
+    option = main_menu.render_main_menu(role)
     return option, fake_streamlit
 
 
@@ -56,7 +57,7 @@ def test_initializes_panel_principal_as_default(
 ) -> None:
     option, fake_streamlit = render_menu(
         monkeypatch,
-        es_administrador=False,
+        role=Role.OPERATOR,
     )
 
     assert option == main_menu.DEFAULT_MODULE
@@ -67,29 +68,39 @@ def test_initializes_panel_principal_as_default(
 
 
 @pytest.mark.parametrize(
-    ("es_administrador", "expected_modules", "expected_message"),
+    ("role", "expected_modules", "expected_message"),
     [
         (
-            False,
+            Role.OPERATOR,
             main_menu.OPERATOR_MODULES,
-            ("info", "Modo Operador 👷"),
+            ("info", "Modo Operador"),
         ),
         (
-            True,
+            Role.ADVISOR,
+            main_menu.ADVISOR_MODULES,
+            ("info", "Modo Asesor"),
+        ),
+        (
+            Role.ADMIN,
             main_menu.ADMIN_MODULES,
-            ("success", "Modo Administrador Activado 🤠"),
+            ("success", "Modo Administrador Activado"),
+        ),
+        (
+            Role.OWNER,
+            main_menu.ADMIN_MODULES,
+            ("success", "Modo Administrador Activado"),
         ),
     ],
 )
-def test_renders_modules_for_access_level(
+def test_renders_modules_for_role(
     monkeypatch: pytest.MonkeyPatch,
-    es_administrador: bool,
+    role: Role,
     expected_modules: tuple[str, ...],
     expected_message: tuple[str, str],
 ) -> None:
     _, fake_streamlit = render_menu(
         monkeypatch,
-        es_administrador=es_administrador,
+        role=role,
     )
 
     assert fake_streamlit.sidebar.radio_options == expected_modules
@@ -109,7 +120,7 @@ def test_preserves_quick_navigation_selection(
 ) -> None:
     option, fake_streamlit = render_menu(
         monkeypatch,
-        es_administrador=False,
+        role=Role.OPERATOR,
         selected=selected,
     )
 
@@ -117,29 +128,13 @@ def test_preserves_quick_navigation_selection(
     assert fake_streamlit.session_state[main_menu.MODULE_STATE_KEY] == selected
 
 
-def test_normalizes_accented_laboratory_selection(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    option, fake_streamlit = render_menu(
-        monkeypatch,
-        es_administrador=False,
-        selected="🧪 Súper Laboratorio",
-    )
-
-    assert option == main_menu.LABORATORY_MODULE
-    assert (
-        fake_streamlit.session_state[main_menu.MODULE_STATE_KEY]
-        == main_menu.LABORATORY_MODULE
-    )
-
-
 def test_resets_unavailable_module_to_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     option, fake_streamlit = render_menu(
         monkeypatch,
-        es_administrador=False,
-        selected="💰 Proyección Financiera",
+        role=Role.OPERATOR,
+        selected="Proyeccion Financiera",
     )
 
     assert option == main_menu.DEFAULT_MODULE

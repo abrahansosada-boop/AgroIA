@@ -7,13 +7,16 @@ import streamlit as st
 from agroia.config import AppConfig, ConfigurationError, DataBackend, load_config
 from agroia.data import load_base_datos, load_botiquin
 from agroia.data_backend import DatabaseClient, create_database_client
+from agroia.tenancy import TenantScopedDatabaseClient, UserContext, resolve_user_context
 from agroia.ui.main_menu import render_main_menu
 
 
 @dataclass
 class AppContext:
     db: DatabaseClient
+    raw_db: DatabaseClient
     data_backend: DataBackend
+    user_context: UserContext
     botiquin: dict
     base_datos: dict
     es_administrador: bool
@@ -34,17 +37,22 @@ def bootstrap_app(argv: Sequence[str] = ()) -> AppContext:
             "Los cambios no se guardan en Supabase."
         )
 
-    db = create_database_client(app_config, st.session_state)
+    raw_db = create_database_client(app_config, st.session_state)
+    user_context = resolve_user_context(raw_db, st.session_state)
+    db = TenantScopedDatabaseClient(raw_db, user_context.tenant_id)
+    render_tenant_badge(user_context)
 
     botiquin = load_botiquin()
     base_datos = load_base_datos(db)
 
-    es_administrador = render_access_level(app_config)
-    opcion = render_main_menu(es_administrador)
+    es_administrador = render_access_level(app_config, user_context)
+    opcion = render_main_menu(user_context.role, es_administrador)
 
     return AppContext(
         db=db,
+        raw_db=raw_db,
         data_backend=app_config.data_backend,
+        user_context=user_context,
         botiquin=botiquin,
         base_datos=base_datos,
         es_administrador=es_administrador,
@@ -93,9 +101,16 @@ def require_login(app_config: AppConfig) -> None:
     st.stop()
 
 
-def render_access_level(app_config: AppConfig) -> bool:
+def render_tenant_badge(user_context: UserContext) -> None:
+    st.sidebar.caption(
+        f"Espacio: {user_context.tenant_name} | Rol: {user_context.role.value}"
+    )
+
+
+def render_access_level(app_config: AppConfig, user_context: UserContext) -> bool:
     st.sidebar.divider()
     st.sidebar.subheader("🔐 Nivel de Acceso")
 
     pin_secreto = st.sidebar.text_input("PIN de Seguridad:", type="password")
-    return hmac.compare_digest(pin_secreto, app_config.admin_pin)
+    pin_admin = hmac.compare_digest(pin_secreto, app_config.admin_pin)
+    return user_context.can_manage_costs or pin_admin

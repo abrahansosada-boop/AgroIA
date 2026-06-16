@@ -17,13 +17,13 @@ def render_selected_page(ctx) -> None:
         render_inventory_page(ctx)
     elif "Laboratorio" in opcion or "Perfil" in opcion or "Motor IA" in opcion:
         render_laboratory_page(ctx)
-    elif "Proyección" in opcion:
+    elif "Proyecci" in opcion:
         render_financial_projection_page(ctx)
     elif "Caja Negra" in opcion:
         render_black_box_page(ctx)
     elif "Mortandad" in opcion:
         render_mortality_page(ctx)
-    elif "Peso" in opcion:
+    elif "Peso" in opcion or "Bascula" in opcion:
         render_weight_page(ctx)
-    elif "Bóveda" in opcion:
+    elif "Boveda" in opcion or "Bóveda" in opcion:
         render_resilience_vault_page(ctx)

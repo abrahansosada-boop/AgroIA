@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+DEMO_TENANT_ID = "demo-rancho"
+
 DEMO_INVENTORY: dict[str, dict[str, float]] = {
     "maiz_molido": {"stock_kg": 1800.0, "costo_kg": 3.6},
     "pasta_de_soya": {"stock_kg": 420.0, "costo_kg": 11.2},
@@ -17,6 +19,8 @@ DEMO_INVENTORY: dict[str, dict[str, float]] = {
 
 DEMO_LOTES: list[dict[str, Any]] = [
     {
+        "id": "lote-demo-becerros",
+        "tenant_id": DEMO_TENANT_ID,
         "nombre_lote": "Demo becerros desarrollo",
         "raza": "brahman",
         "genero": "Macho",
@@ -30,11 +34,30 @@ DEMO_LOTES: list[dict[str, Any]] = [
 
 DEMO_BITACORA: list[dict[str, Any]] = [
     {
+        "tenant_id": DEMO_TENANT_ID,
         "fecha": "2026-06-12T09:00:00",
         "accion": "Carga demo",
         "detalle": "Datos locales de ejemplo cargados sin Supabase real.",
         "gasto_total": 0.0,
         "kilos_procesados": 0.0,
+    }
+]
+
+DEMO_TENANTS: list[dict[str, Any]] = [
+    {
+        "id": DEMO_TENANT_ID,
+        "name": "Rancho demo",
+        "is_active": True,
+    }
+]
+
+DEMO_TENANT_MEMBERSHIPS: list[dict[str, Any]] = [
+    {
+        "tenant_id": DEMO_TENANT_ID,
+        "user_id": "demo-owner",
+        "display_name": "Owner demo",
+        "role": "owner",
+        "is_active": True,
     }
 ]
 
@@ -105,8 +128,10 @@ class DemoTableQuery:
 class DemoSupabaseClient:
     def __init__(self) -> None:
         self._tables = {
+            "tenants": deepcopy(DEMO_TENANTS),
+            "tenant_memberships": deepcopy(DEMO_TENANT_MEMBERSHIPS),
             "inventario": [
-                {"insumo": insumo, **datos}
+                {"tenant_id": DEMO_TENANT_ID, "insumo": insumo, **datos}
                 for insumo, datos in DEMO_INVENTORY.items()
             ],
             "perfiles_lotes": deepcopy(DEMO_LOTES),
