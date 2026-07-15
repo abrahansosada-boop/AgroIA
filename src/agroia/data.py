@@ -41,11 +41,11 @@ def load_base_datos(db: DatabaseClient) -> dict:
 
 
 def registrar_bitacora(
-    db: DatabaseClient,
     accion: str,
     detalle: str,
     gasto_total: float = 0.0,
     kilos_procesados: float = 0.0,
+    lote_id: int | None = None
 ) -> bool:
     try:
         datos = {
@@ -54,9 +54,15 @@ def registrar_bitacora(
             "gasto_total": float(gasto_total),
             "kilos_procesados": float(kilos_procesados),
         }
-
+        
+        if lote_id is not None:
+            datos["lote_id"] = int(lote_id)
+            
         db.table("bitacora").insert(datos).execute()
         return True
+        
+    except Exception:
+        return False
 
     except Exception as e:
         st.error(f"⚠️ Error al guardar en la bitácora: {e}")

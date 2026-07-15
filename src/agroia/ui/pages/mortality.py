@@ -1,6 +1,7 @@
 import streamlit as st
 
 from agroia.data import registrar_bitacora
+from agroia.lots import get_active_lot_id
 
 
 def render_mortality_page(ctx) -> None:
@@ -42,7 +43,12 @@ def render_mortality_page(ctx) -> None:
             perdida_medica = bajas * costo_unitario
 
         detalle = f"Baja de {bajas} cabezas por {causa}. Fuga de capital médico: ${perdida_medica:.2f}"
-        registrar_bitacora(db, "Baja por Mortandad", detalle)
+        registrar_bitacora(
+            db,
+            "Baja por Mortandad",
+            detalle,
+            lote_id=get_active_lot_id(st.session_state),
+        )
         
         if 'fuga_capital' not in st.session_state:
             st.session_state['fuga_capital'] = 0.0

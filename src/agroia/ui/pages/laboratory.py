@@ -7,6 +7,7 @@ from agroia.domain.livestock import (
     optimizar_dieta,
     validar_inventario_para_receta,
 )
+from agroia.lots import build_lot_profile, get_active_lot_id
 
 
 def render_laboratory_page(ctx) -> None:
@@ -42,16 +43,7 @@ def render_laboratory_page(ctx) -> None:
                 if st.button("⚡ Activar Lote para Formulación", width="stretch"):
                     datos_lote = next(item for item in lotes_guardados if item["nombre_lote"] == lote_elegido)
                     
-                    st.session_state['perfil'] = {
-                        "nombre": datos_lote["nombre_lote"],
-                        "raza": datos_lote["raza"],
-                        "genero": datos_lote["genero"],
-                        "proposito": datos_lote["proposito"],
-                        "edad": int(datos_lote["edad"]),
-                        "peso": float(datos_lote["peso_promedio"]),
-                        "clima": float(datos_lote["clima_local"]),
-                        "costo_salud": float(datos_lote["costo_salud"])
-                    }
+                    st.session_state['perfil'] = build_lot_profile(datos_lote)
                     
                     st.success(f"✅ ¡Lote **{lote_elegido}** activado! Baja a la sección de dietas.")
             
@@ -191,7 +183,7 @@ def render_laboratory_page(ctx) -> None:
 
             if nombre_nuevo_lote:
                 try:
-                    db.table("perfiles_lotes").insert({
+                    inserted = db.table("perfiles_lotes").insert({
                         "nombre_lote": nombre_nuevo_lote,
                         "raza": raza_sel,
                         "genero": genero,
@@ -201,6 +193,8 @@ def render_laboratory_page(ctx) -> None:
                         "clima_local": clima,
                         "costo_salud": costo_salud_total
                     }).execute()
+                    if inserted.data:
+                        st.session_state['perfil'] = build_lot_profile(inserted.data[0])
                     
                     st.success(f"✅ ¡Guardado! Ve a la pestaña 'Cargar Lote' y presiona el botón 'Actualizar Lista'.")
                 
@@ -340,7 +334,16 @@ def render_laboratory_page(ctx) -> None:
                     m = st.session_state['mezcla_lista']
                     detalle_txt = f"Lote MANUAL de {m['total_kilos']}kg al {m['proteina']:.1f}% de proteína."
                     try:
-                        db.table("bitacora").insert({"accion": "Preparación Manual", "detalle": detalle_txt, "gasto_total": m['costo_total'], "kilos_procesados": m['total_kilos']}).execute()
+                        payload = {
+                            "accion": "Preparación Manual",
+                            "detalle": detalle_txt,
+                            "gasto_total": m['costo_total'],
+                            "kilos_procesados": m['total_kilos'],
+                        }
+                        lote_id = get_active_lot_id(st.session_state)
+                        if lote_id is not None:
+                            payload["lote_id"] = lote_id
+                        db.table("bitacora").insert(payload).execute()
                         st.success(f"✅ ¡Dinero auditado! Se registraron ${m['costo_total']:,.2f} MXN en la Nube.")
                         del st.session_state['mezcla_lista']
                     except Exception as e:
@@ -483,7 +486,16 @@ def render_laboratory_page(ctx) -> None:
 
                     try:
                         detalle = f"Lote IA Tolva: {kilos_totales_ia:,.0f}kg al {sol['proteina_log']}% de prot."
-                        db.table("bitacora").insert({"accion": "Preparación IA", "detalle": detalle, "gasto_total": costo_lote_ia, "kilos_procesados": kilos_totales_ia}).execute()
+                        payload = {
+                            "accion": "Preparación IA",
+                            "detalle": detalle,
+                            "gasto_total": costo_lote_ia,
+                            "kilos_procesados": kilos_totales_ia,
+                        }
+                        lote_id = get_active_lot_id(st.session_state)
+                        if lote_id is not None:
+                            payload["lote_id"] = lote_id
+                        db.table("bitacora").insert(payload).execute()
 
                         st.session_state['mezcla'] = {
                             "proteina": sol['proteina_log'], "energia": sol['energia_log'], "fibra": 10.0,
