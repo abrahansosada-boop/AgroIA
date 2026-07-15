@@ -27,7 +27,7 @@ class Role(StrEnum):
 
 @dataclass(frozen=True)
 class UserContext:
-    tenant_id: str
+    tenant_id: int
     tenant_name: str
     user_id: str
     display_name: str
