@@ -1,65 +1,86 @@
-def evaluar_riesgo_termico(raza: str, temperatura: float) -> dict:
-    """Evalúa el riesgo de estrés calórico utilizando el codex genético oficial del rancho."""
-    raza = raza.lower().strip()
+import re
+from typing import Dict, Any
+
+CODEX_METABOLICO: Dict[str, Dict[str, Any]] = {
+    # --- BOS INDICUS PUROS
+    "brahman": {"biotipo_metabolico": "INDICUS_FIBRAL_RUSTICO", "proporcion_indicus": 1.0, "factor_mantenimiento_enm": 0.88, "ingesta_materia_seca_max_pct": 2.5, "indice_reciclaje_urea_saliva": 1.30, "tasa_paso_ruminal": "Lenta", "umbral_termico_confort_c": 35.0},
+    "nelore": {"biotipo_metabolico": "INDICUS_FIBRAL_RUSTICO", "proporcion_indicus": 1.0, "factor_mantenimiento_enm": 0.88, "ingesta_materia_seca_max_pct": 2.5, "indice_reciclaje_urea_saliva": 1.30, "tasa_paso_ruminal": "Lenta", "umbral_termico_confort_c": 36.0},
+    "indubrasil": {"biotipo_metabolico": "INDICUS_FIBRAL_RUSTICO", "proporcion_indicus": 1.0, "factor_mantenimiento_enm": 0.90, "ingesta_materia_seca_max_pct": 2.6, "indice_reciclaje_urea_saliva": 1.25, "tasa_paso_ruminal": "Lenta", "umbral_termico_confort_c": 34.0},
+    "guzerat": {"biotipo_metabolico": "INDICUS_FIBRAL_RUSTICO", "proporcion_indicus": 1.0, "factor_mantenimiento_enm": 0.88, "ingesta_materia_seca_max_pct": 2.55, "indice_reciclaje_urea_saliva": 1.30, "tasa_paso_ruminal": "Lenta", "umbral_termico_confort_c": 35.0},
+    "sardo_negro": {"biotipo_metabolico": "INDICUS_LECHE_TROPICAL", "proporcion_indicus": 1.0, "factor_mantenimiento_enm": 0.89, "ingesta_materia_seca_max_pct": 2.55, "indice_reciclaje_urea_saliva": 1.30, "tasa_paso_ruminal": "Media", "umbral_termico_confort_c": 35.0},
+    "gyr": {"biotipo_metabolico": "INDICUS_LECHE_TROPICAL", "proporcion_indicus": 1.0, "factor_mantenimiento_enm": 0.89, "ingesta_materia_seca_max_pct": 2.6, "indice_reciclaje_urea_saliva": 1.35, "tasa_paso_ruminal": "Media", "umbral_termico_confort_c": 34.0},
+
+    # --- BOS TAURUS PUROS
+    "angus": {"biotipo_metabolico": "TAURUS_METABOLISMO_ACELERADO", "proporcion_indicus": 0.0, "factor_mantenimiento_enm": 1.00, "ingesta_materia_seca_max_pct": 2.8, "indice_reciclaje_urea_saliva": 1.00, "tasa_paso_ruminal": "Rapida", "umbral_termico_confort_c": 27.0},
+    "hereford": {"biotipo_metabolico": "TAURUS_METABOLISMO_ACELERADO", "proporcion_indicus": 0.0, "factor_mantenimiento_enm": 0.98, "ingesta_materia_seca_max_pct": 2.75, "indice_reciclaje_urea_saliva": 1.00, "tasa_paso_ruminal": "Rapida", "umbral_termico_confort_c": 28.0},
+    "charolais": {"biotipo_metabolico": "TAURUS_CONTINENTAL_MUSCULAR", "proporcion_indicus": 0.0, "factor_mantenimiento_enm": 1.05, "ingesta_materia_seca_max_pct": 2.9, "indice_reciclaje_urea_saliva": 1.00, "tasa_paso_ruminal": "Rapida", "umbral_termico_confort_c": 28.0},
+    "simmental": {"biotipo_metabolico": "TAURUS_CONTINENTAL_MUSCULAR", "proporcion_indicus": 0.0, "factor_mantenimiento_enm": 1.04, "ingesta_materia_seca_max_pct": 2.9, "indice_reciclaje_urea_saliva": 1.00, "tasa_paso_ruminal": "Rapida", "umbral_termico_confort_c": 27.5},
+    "limousin": {"biotipo_metabolico": "TAURUS_CONTINENTAL_MUSCULAR", "proporcion_indicus": 0.0, "factor_mantenimiento_enm": 1.03, "ingesta_materia_seca_max_pct": 2.75, "indice_reciclaje_urea_saliva": 1.00, "tasa_paso_ruminal": "Rapida", "umbral_termico_confort_c": 28.5},
+    "suizo_europeo": {"biotipo_metabolico": "TAURUS_CONTINENTAL_MUSCULAR", "proporcion_indicus": 0.0, "factor_mantenimiento_enm": 1.06, "ingesta_materia_seca_max_pct": 2.95, "indice_reciclaje_urea_saliva": 1.00, "tasa_paso_ruminal": "Rapida", "umbral_termico_confort_c": 26.0},
+    "holstein": {"biotipo_metabolico": "TAURUS_LECHERO_INTENSIVO", "proporcion_indicus": 0.0, "factor_mantenimiento_enm": 1.20, "ingesta_materia_seca_max_pct": 3.2, "indice_reciclaje_urea_saliva": 1.00, "tasa_paso_ruminal": "Muy Rapida", "umbral_termico_confort_c": 25.0},
+    "jersey": {"biotipo_metabolico": "TAURUS_LECHERO_INTENSIVO", "proporcion_indicus": 0.0, "factor_mantenimiento_enm": 1.15, "ingesta_materia_seca_max_pct": 3.1, "indice_reciclaje_urea_saliva": 1.00, "tasa_paso_ruminal": "Muy Rapida", "umbral_termico_confort_c": 27.0},
+
+    # --- CRUZAS SINTÉTICAS
+    "brangus": {"biotipo_metabolico": "SINTETICA_CARNE_TROPICAL", "proporcion_indicus": 0.375, "factor_mantenimiento_enm": 0.95, "ingesta_materia_seca_max_pct": 2.7, "indice_reciclaje_urea_saliva": 1.10, "tasa_paso_ruminal": "Media", "umbral_termico_confort_c": 32.0},
+    "braford": {"biotipo_metabolico": "SINTETICA_CARNE_TROPICAL", "proporcion_indicus": 0.375, "factor_mantenimiento_enm": 0.94, "ingesta_materia_seca_max_pct": 2.65, "indice_reciclaje_urea_saliva": 1.10, "tasa_paso_ruminal": "Media", "umbral_termico_confort_c": 32.0},
+    "charbray": {"biotipo_metabolico": "SINTETICA_CONTINENTAL_RUSTICA", "proporcion_indicus": 0.375, "factor_mantenimiento_enm": 1.00, "ingesta_materia_seca_max_pct": 2.8, "indice_reciclaje_urea_saliva": 1.08, "tasa_paso_ruminal": "Media Rapida", "umbral_termico_confort_c": 31.5},
+    "simbrah": {"biotipo_metabolico": "SINTETICA_DOBLE_PROPOSITO", "proporcion_indicus": 0.375, "factor_mantenimiento_enm": 0.99, "ingesta_materia_seca_max_pct": 2.8, "indice_reciclaje_urea_saliva": 1.10, "tasa_paso_ruminal": "Media Rapida", "umbral_termico_confort_c": 32.0},
+    "simangus": {"biotipo_metabolico": "CRUZA_EUROPEA_ACELERADA", "proporcion_indicus": 0.0, "factor_mantenimiento_enm": 1.02, "ingesta_materia_seca_max_pct": 2.85, "indice_reciclaje_urea_saliva": 1.00, "tasa_paso_ruminal": "Rapida", "umbral_termico_confort_c": 27.5},
+    "black_baldy": {"biotipo_metabolico": "CRUZA_BRITANICA_ACELERADA", "proporcion_indicus": 0.0, "factor_mantenimiento_enm": 0.99, "ingesta_materia_seca_max_pct": 2.8, "indice_reciclaje_urea_saliva": 1.00, "tasa_paso_ruminal": "Rapida", "umbral_termico_confort_c": 27.0},
+    "nelangus": {"biotipo_metabolico": "SINTETICA_F1_TROPICAL", "proporcion_indicus": 0.5, "factor_mantenimiento_enm": 0.94, "ingesta_materia_seca_max_pct": 2.65, "indice_reciclaje_urea_saliva": 1.15, "tasa_paso_ruminal": "Media", "umbral_termico_confort_c": 33.5},
+    "suizo_cebu": {"biotipo_metabolico": "SINTETICA_DOBLE_PROPOSITO", "proporcion_indicus": 0.5, "factor_mantenimiento_enm": 0.97, "ingesta_materia_seca_max_pct": 2.75, "indice_reciclaje_urea_saliva": 1.15, "tasa_paso_ruminal": "Media", "umbral_termico_confort_c": 33.0},
+    "girolando": {"biotipo_metabolico": "SINTETICA_LECHE_TROPICAL", "proporcion_indicus": 0.5, "factor_mantenimiento_enm": 1.04, "ingesta_materia_seca_max_pct": 2.9, "indice_reciclaje_urea_saliva": 1.15, "tasa_paso_ruminal": "Media Rapida", "umbral_termico_confort_c": 31.0},
+    "beefmaster": {"biotipo_metabolico": "SINTETICA_TRI_CRUZA", "proporcion_indicus": 0.5, "factor_mantenimiento_enm": 0.95, "ingesta_materia_seca_max_pct": 2.7, "indice_reciclaje_urea_saliva": 1.12, "tasa_paso_ruminal": "Media", "umbral_termico_confort_c": 33.0},
+    "brahmousin": {"biotipo_metabolico": "SINTETICA_CONTINENTAL_RUSTICA", "proporcion_indicus": 0.375, "factor_mantenimiento_enm": 0.98, "ingesta_materia_seca_max_pct": 2.7, "indice_reciclaje_urea_saliva": 1.08, "tasa_paso_ruminal": "Media", "umbral_termico_confort_c": 32.0}
+}
+
+def obtener_perfil_metabolico(raza_input: str) -> Dict[str, Any]:
+    texto = raza_input.lower().strip()
+    texto_exacto = texto.replace(" ", "_")
     
-    codex_genetico = {
-        # BOS INDICUS
-        "brahman": {"sangre": "Indicus", "clima": "Trópico/Calor Extremo", "riesgo_termico": "Nulo", "proposito": "Carne"},
-        "nelore": {"sangre": "Indicus", "clima": "Trópico/Calor Extremo", "riesgo_termico": "Nulo", "proposito": "Carne"},
-        "sardo negro": {"sangre": "Indicus", "clima": "Trópico/Humedad", "riesgo_termico": "Nulo", "proposito": "Doble Propósito"},
-        "gyr": {"sangre": "Indicus", "clima": "Trópico/Calor", "riesgo_termico": "Nulo", "proposito": "Leche Tropical"},
-        "indubrasil": {"sangre": "Indicus", "clima": "Trópico", "riesgo_termico": "Nulo", "proposito": "Carne"},
-        "guzerat": {"sangre": "Indicus", "clima": "Trópico/Árido", "riesgo_termico": "Nulo", "proposito": "Doble Propósito"},
+    if texto_exacto in CODEX_METABOLICO:
+        return CODEX_METABOLICO[texto_exacto]
         
-        # BOS TAURUS
-        "angus": {"sangre": "Taurus", "clima": "Templado/Frío", "riesgo_termico": "Crítico (>30°C)", "proposito": "Carne Premium"},
-        "charolais": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Alto", "proposito": "Carne (Volumen)"},
-        "simmental": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Alto", "proposito": "Doble Propósito"},
-        "hereford": {"sangre": "Taurus", "clima": "Templado/Frío", "riesgo_termico": "Crítico (>30°C)", "proposito": "Carne Rústica"},
-        "suizo europeo": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Moderado", "proposito": "Doble Propósito"},
-        "holstein": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Crítico (>28°C)", "proposito": "Leche Especializada"},
-        "limousin": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Alto", "proposito": "Carne (Canal)"},
-        "jersey": {"sangre": "Taurus", "clima": "Templado", "riesgo_termico": "Moderado", "proposito": "Leche (Grasa)"},
+    razas_encontradas = []
+    for clave in CODEX_METABOLICO.keys():
+        patron = r'\b' + clave.replace('_', r'[\s_]+') + r'\b'
+        match = re.search(patron, texto)
+        if match:
+            razas_encontradas.append((match.start(), clave))
+            
+    if razas_encontradas:
+        razas_encontradas.sort(key=lambda x: x[0])
+        primera_raza = razas_encontradas[0][1]
+        return CODEX_METABOLICO[primera_raza]
         
-        # CRUZAS Y SINTÉTICAS
-        "brangus (brahman x angus)": {"sangre": "Sintética", "clima": "Subtrópico", "riesgo_termico": "Bajo", "proposito": "Carne"},
-        "braford (brahman x hereford)": {"sangre": "Sintética", "clima": "Subtrópico", "riesgo_termico": "Bajo", "proposito": "Carne"},
-        "charbray (brahman x charolais)": {"sangre": "Sintética", "clima": "Trópico Seco", "riesgo_termico": "Bajo", "proposito": "Carne"},
-        "simbrah (brahman x simmental)": {"sangre": "Sintética", "clima": "Subtrópico", "riesgo_termico": "Bajo", "proposito": "Doble Propósito"},
-        "simangus (simmental x angus)": {"sangre": "Taurus cruzado", "clima": "Templado", "riesgo_termico": "Moderado", "proposito": "Carne"},
-        "black baldy (angus x hereford)": {"sangre": "Taurus cruzado", "clima": "Templado/Frío", "riesgo_termico": "Alto", "proposito": "Carne"},
-        "nelangus (nelore x angus)": {"sangre": "Sintética", "clima": "Trópico", "riesgo_termico": "Bajo", "proposito": "Carne"},
-        "suizo-cebu (suizo x brahman)": {"sangre": "Sintética", "clima": "Trópico Húmedo", "riesgo_termico": "Bajo", "proposito": "Doble Propósito"},
-        "girolando (holstein x gyr)": {"sangre": "Sintética", "clima": "Trópico/Humedad", "riesgo_termico": "Bajo", "proposito": "Leche Tropical"},
-        "beefmaster": {"sangre": "Sintética", "clima": "Adaptable", "riesgo_termico": "Bajo", "proposito": "Carne"},
-        "brahmousin (brahman x limousin)": {"sangre": "Sintética", "clima": "Subtrópico", "riesgo_termico": "Bajo", "proposito": "Carne"}
+    return {
+        "biotipo_metabolico": "GENERICO_DESCONOCIDO",
+        "proporcion_indicus": 0.5,
+        "factor_mantenimiento_enm": 1.00,
+        "ingesta_materia_seca_max_pct": 2.7,
+        "indice_reciclaje_urea_saliva": 1.05,
+        "tasa_paso_ruminal": "Media",
+        "umbral_termico_confort_c": 30.0
     }
 
-    datos_raza = codex_genetico.get(raza, {"sangre": "Desconocida", "clima": "Variable", "riesgo_termico": "Desconocido", "proposito": "General"})
+def evaluar_riesgo_termico(raza: str, temperatura: float) -> Dict[str, Any]:
+    perfil = obtener_perfil_metabolico(raza)
+    limite = perfil["umbral_termico_confort_c"]
     
-    riesgo = False
-    mensaje = f"✅ CLIMA CONFORTABLE: Temperatura de {temperatura}°C dentro del rango de confort para su perfil."
-    limite_termico = 30.0 
+    riesgo = temperatura > limite
+    exceso = round(temperatura - limite, 1)
     
-    if temperatura >= 35 and datos_raza["riesgo_termico"] in ["Crítico (>30°C)", "Crítico (>28°C)"]:
-        riesgo = True
-        limite_termico = 28.0 if "28" in datos_raza["riesgo_termico"] else 30.0
-        mensaje = f"❌ INCOMPATIBILIDAD GRAVE: Un animal {datos_raza['sangre']} a {temperatura}°C sufrirá estrés térmico severo."
-        
-    elif temperatura >= 30 and datos_raza["riesgo_termico"] == "Alto":
-        riesgo = True
-        limite_termico = 30.0
-        mensaje = f"⚠️ RIESGO MODERADO: La temperatura de {temperatura}°C está en el límite para esta genética."
-        
-    elif datos_raza["riesgo_termico"] == "Nulo":
-        riesgo = False
-        limite_termico = 35.0
-        mensaje = f"✅ ADAPTABILIDAD PERFECTA: Genética resistente. Soporta bien los {temperatura}°C."
+    if not riesgo:
+        mensaje = f"✅ CLIMA CONFORTABLE: Temperatura de {temperatura}°C dentro del rango de confort para su perfil."
+    elif exceso <= 3.0:
+        mensaje = f"⚠️ RIESGO MODERADO: La temperatura de {temperatura}°C está en el límite para esta genética ({limite}°C máx)."
+    else:
+        mensaje = f"❌ INCOMPATIBILIDAD GRAVE: Un animal {perfil['biotipo_metabolico']} a {temperatura}°C sufrirá estrés térmico severo."
 
     return {
         "raza_detectada": raza.title(),
-        "tipo_genetico": datos_raza["sangre"],
-        "limite_termico": limite_termico,
+        "tipo_genetico": perfil["biotipo_metabolico"],
+        "limite_termico": limite,
         "temperatura_actual": temperatura,
         "riesgo_termico": riesgo,
         "mensaje": mensaje

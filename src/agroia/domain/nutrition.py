@@ -14,15 +14,15 @@ def calcular_correccion_pearson(prot_actual: float, kilos_tolva: float, prot_obj
 
 
 def auditar_mezcla_manual(ingredientes_mezcla: list) -> dict:
-    """Evalúa los aportes nutricionales de una mezcla ingresada a mano."""
+    """Evalúa los aportes nutricionales de una mezcla ingresada a mano (Con mapeo QFB)."""
     total_kilos = sum(item["kilos"] for item in ingredientes_mezcla)
     
     if total_kilos <= 0:
         return {"exito": False, "error": "Agregue kilos a los ingredientes."}
         
-    prot_acum = sum((item["kilos"] * item["datos"].get("proteina_pct", 0)) for item in ingredientes_mezcla) / total_kilos
-    ener_acum = sum((item["kilos"] * item["datos"].get("energia_mcal", 0)) for item in ingredientes_mezcla) / total_kilos
-    fibr_acum = sum((item["kilos"] * item["datos"].get("fibra_pct", 0)) for item in ingredientes_mezcla) / total_kilos
+    prot_acum = sum((item["kilos"] * item["datos"].get("proteina_bruta_pct", 0)) for item in ingredientes_mezcla) / total_kilos
+    ener_acum = sum((item["kilos"] * item["datos"].get("energia_metabolizable_mcal", 0)) for item in ingredientes_mezcla) / total_kilos
+    fibr_acum = sum((item["kilos"] * item["datos"].get("fdn_pct", 0)) for item in ingredientes_mezcla) / total_kilos
     costo_tot = sum((item["kilos"] * item["datos"].get("costo_kg", 0)) for item in ingredientes_mezcla)
     
     return {
@@ -36,51 +36,56 @@ def auditar_mezcla_manual(ingredientes_mezcla: list) -> dict:
     }
 
 
-def optimizar_dieta_pulp(base_datos: dict, req_proteina: float, req_energia: float) -> dict:
+def optimizar_dieta_pulp(base_datos: dict, req_proteina: float, req_energia: float, min_fdn_efectiva: float = 15.0) -> dict:
     """
-    Motor matemático (PuLP) para optimizar dietas.
-    Implementa el Punto 7: Verifica stock real en inventario y minimiza costos.
+    Motor matemático (PuLP) con Escudo Metabólico QFB.
+    Equilibra el costo, la energía y la salud del rumen.
     """
-    # FILTRO DE INVENTARIO REAL: Solo usar insumos con stock > 0
     insumos_disponibles = {
         insumo: datos for insumo, datos in base_datos.items() 
         if datos.get("stock_kg", 0) > 0
     }
 
     if not insumos_disponibles:
-        return {"exito": False, "error": "Tu bodega está vacía o sin stock en ningún insumo. Ve a comprar inventario."}
+        return {"exito": False, "error": "Tu bodega está vacía o sin stock en ningún insumo."}
         
     if len(insumos_disponibles) < 2:
         return {"exito": False, "error": "Necesitas al menos 2 ingredientes con stock para poder hacer una mezcla."}
 
     insumos = list(insumos_disponibles.keys())
-    prob = pulp.LpProblem("Dieta_Barata", pulp.LpMinimize)
+    prob = pulp.LpProblem("Dieta_Metabolica_QFB", pulp.LpMinimize)
     x = pulp.LpVariable.dicts("Ingrediente", insumos, lowBound=0)
 
-    # Función objetivo: Minimizar costo
+    # 1. Función objetivo: Minimizar costo financiero
     prob += pulp.lpSum([x[i] * insumos_disponibles[i]["costo_kg"] for i in insumos]), "Costo"
     
-    # Restricciones base
+    # 2. Restricción base
     prob += pulp.lpSum([x[i] for i in insumos]) == 100, "Peso_100"
-    prob += pulp.lpSum([x[i] * insumos_disponibles[i]["proteina_pct"] for i in insumos]) >= req_proteina * 100, "Req_Prot"
-    prob += pulp.lpSum([x[i] * insumos_disponibles[i]["energia_mcal"] for i in insumos]) >= req_energia * 100, "Req_Ener"
+    
+    # 3. Restricciones de Macronutrientes (Con las nuevas llaves del diccionario)
+    prob += pulp.lpSum([x[i] * insumos_disponibles[i]["proteina_bruta_pct"] for i in insumos]) >= req_proteina * 100, "Req_Prot"
+    prob += pulp.lpSum([x[i] * insumos_disponibles[i]["energia_metabolizable_mcal"] for i in insumos]) >= req_energia * 100, "Req_Ener"
 
-    # Restricciones de palatabilidad (max_pct) definidos en la base de datos
+    # 4. EL CEREBRO VETERINARIO: Restricción de Fibra Físicamente Efectiva
+    prob += pulp.lpSum([x[i] * (insumos_disponibles[i]["fdn_pct"] * insumos_disponibles[i].get("indice_efectividad_fdn", 0.5)) for i in insumos]) >= min_fdn_efectiva * 100, "Min_FDN_Efectiva"
+
+    # 5. Restricciones físicas de llenado (max_pct)
     for i in insumos:
         if "max_pct" in insumos_disponibles[i]:
             prob += x[i] <= insumos_disponibles[i]["max_pct"], f"Max_{i}"
 
-    # FILTROS DE TOXICIDAD Y RESTRICCIONES BIOLÓGICAS
-    toxicos = [i for i in ["urea_agricola", "pollinaza", "harina_pescado", "harina_hueso"] if i in insumos]
+    # 6. FILTROS DE TOXICIDAD HEPÁTICA Y MINERAL (Defensa Legal)
+    toxicos = [i for i in ["urea_agricola", "pollinaza", "harina_pescado", "harina_de_hueso"] if i in insumos]
     
-    if "urea_agricola" in toxicos: prob += x["urea_agricola"] <= 0.5, "Tope_Urea"
+    if "urea_agricola" in toxicos: prob += x["urea_agricola"] <= 1.5, "Tope_Urea"
     if "pollinaza" in toxicos: prob += x["pollinaza"] <= 12.0, "Tope_Pollinaza"
     if "harina_pescado" in toxicos: prob += x["harina_pescado"] <= 4.0, "Tope_Pescado"
-    if "harina_hueso" in toxicos: prob += x["harina_hueso"] <= 1.5, "Tope_Hueso" # Límite de toxicidad mineral
+    if "harina_de_hueso" in toxicos: prob += x["harina_de_hueso"] <= 1.5, "Tope_Hueso"
     
-    # Colchón de paranoia: Si la IA intenta usar mucha basura junta para abaratar, la frenamos.
+    # Colchón de paranoia biológica
     if len(toxicos) >= 2: 
-        prob += pulp.lpSum([x[i] for i in toxicos]) <= 11.0, "Colchon_Paranoia_Palatabilidad"
+        prob += pulp.lpSum([x[i] for i in toxicos]) <= 13.0, "Colchon_Paranoia_Hepatica"
+
 
     prob.solve(pulp.PULP_CBC_CMD(msg=False)) 
 
@@ -112,7 +117,7 @@ def optimizar_dieta_pulp(base_datos: dict, req_proteina: float, req_energia: flo
             "energia_log": req_energia
         }
     else:
-        return {"exito": False, "error": "No hay suficientes insumos proteicos o energéticos en la bodega para lograr esta mezcla. La IA no pudo resolverlo."}
+        return {"exito": False, "error": "Inviabilidad Metabólica: No hay suficientes insumos de calidad para estabilizar el rumen. Abortando formulación."}
 
 def calcular_rendimiento_nopal(densidad_ha: int, peso_penca: float, pencas_por_planta: int) -> float:
     rendimiento_kg = densidad_ha * pencas_por_planta * peso_penca
