@@ -64,34 +64,34 @@ def resolve_user_context(
 
 
 def _load_first_active_user_context(db: DatabaseClient) -> UserContext:
-    try:
-        memberships = (
-            db.table("tenant_memberships")
-            .select("*")
-            .eq("is_active", True)
-            .execute()
-            .data
-        )
-        tenants = db.table("tenants").select("*").execute().data
-    except Exception:
-        return _default_demo_context()
-
+    memberships = (
+        db.table("tenant_memberships")
+        .select("*")
+        .eq("is_active", True)
+        .execute()
+        .data
+    )
+    
     if not memberships:
         return _default_demo_context()
-
+        
     membership = memberships[0]
-    role = _coerce_role(membership.get("role"))
     tenant_id = str(membership.get("tenant_id") or DEFAULT_TENANT_ID)
-    tenant = next((item for item in tenants if item.get("id") == tenant_id), {})
-
+    
+    tenants = db.table("tenants").select("*").eq("id", tenant_id).execute().data
+    
+    if not tenants:
+        return _default_demo_context()
+        
+    tenant = tenants[0]
+    
     return UserContext(
         tenant_id=tenant_id,
-        tenant_name=str(tenant.get("name") or "Rancho demo"),
-        user_id=str(membership.get("user_id") or "demo-owner"),
-        display_name=str(membership.get("display_name") or "Owner demo"),
-        role=role,
+        tenant_name=str(tenant.get("name") or "Rancho Demo"),
+        user_id=str(membership.get("user_id") or "demo-user"),
+        display_name=str(membership.get("display_name") or "Owner Demo"),
+        role=coerce_role(membership.get("role"))
     )
-
 
 def _coerce_role(value: Any) -> Role:
     try:
